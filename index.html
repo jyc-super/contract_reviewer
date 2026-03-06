@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>계약 리스크 리뷰 대시보드</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      [정적 목업] 실제 앱은 Next.js로 동작합니다.
+      결과 확인: 터미널에서 npm run dev 실행 후 http://localhost:3000 접속.
+    -->
+    <!-- Tailwind CDN (프로토타입용) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <div class="min-h-screen px-6 py-8">
+      <main class="max-w-6xl mx-auto space-y-10">
+        <!-- 헤더 + 오늘의 쿼터 -->
+        <header class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight">
+              계약 리스크 리뷰 대시보드
+            </h1>
+            <p class="mt-2 text-sm text-slate-600 max-w-xl">
+              건설/EPC 계약서를 업로드하고, 조항 단위 리스크와 FIDIC 편차를 한 번에 확인하세요.
+              아래에서 새 계약을 업로드하거나, 최근 계약의 분석 결과를 다시 열 수 있습니다.
+            </p>
+          </div>
+
+          <!-- QuotaDisplay 위젯 (모의 데이터) -->
+          <section
+            class="border border-slate-200 rounded-lg px-4 py-3 bg-white shadow-sm text-xs text-slate-700 space-y-1 w-full lg:w-80"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold">오늘의 API 사용량</span>
+              <span class="text-[11px] text-slate-500">리셋: 오늘 17:00 KST</span>
+            </div>
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span>Flash</span>
+                <span>120 / 250</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-red-500" style="width: 48%;"></div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span>Flash-Lite</span>
+                <span>15 / 1000</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500" style="width: 2%;"></div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span>Pro</span>
+                <span>0 / 100</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-slate-300" style="width: 0%;"></div>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span>Embedding</span>
+                <span>280 / 1500</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500" style="width: 19%;"></div>
+              </div>
+            </div>
+            <p class="text-[11px] text-amber-600 mt-1">
+              ⚠ Flash 50% 이상 사용됨 — 대량 분석은 내일로 미루는 것을 권장합니다.
+            </p>
+          </section>
+        </header>
+
+        <!-- 상단: 업로드 카드 + 통계 카드 -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- 업로드 카드 -->
+          <div class="lg:col-span-2">
+            <div class="border border-slate-200 rounded-xl bg-white p-5 shadow-sm space-y-4">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-sm font-semibold text-slate-800">
+                    새 계약 업로드
+                  </h2>
+                  <p class="mt-1 text-xs text-slate-500">
+                    PDF/DOCX 파일을 드래그 앤 드롭하거나 클릭해서 선택하세요.
+                    실제 업로드 파이프라인 연결 전까지는 UI 목업으로만 동작합니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="hidden sm:inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                >
+                  업로드 페이지로 이동
+                </button>
+              </div>
+
+              <!-- FileDropzone 목업 -->
+              <label
+                class="mt-2 flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-lg px-6 py-10 text-center cursor-pointer hover:border-slate-400 bg-slate-50/60"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-8 w-8 text-slate-400 mb-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 15.75V9.75A2.25 2.25 0 015.25 7.5H9l2.25-3h1.5L15 7.5h3.75A2.25 2.25 0 0121 9.75v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15.75z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 13.5L12 10.5m0 0l3 3m-3-3v6"
+                  />
+                </svg>
+                <p class="text-sm text-slate-700">
+                  여기로 <span class="font-semibold">PDF / DOCX</span> 파일을
+                  드래그 앤 드롭하거나, 클릭해서 선택하세요.
+                </p>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  최대 50MB, 합본 PDF 지원 • 스캔본은 OCR로 자동 처리
+                </p>
+                <input type="file" class="hidden" />
+              </label>
+
+              <!-- UploadProgress 6단계 목업 -->
+              <div class="mt-4 space-y-2">
+                <div class="flex items-center justify-between text-xs text-slate-600">
+                  <span>3. 문서 구역 분류 진행 중...</span>
+                  <span>진행률: 42%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full transition-all"
+                    style="width: 42%;"
+                  ></div>
+                </div>
+                <ul class="mt-2 text-[11px] text-slate-600 space-y-0.5">
+                  <li>✅ 1. 파일 검증 완료 (PDF, 89p, EN+KO)</li>
+                  <li>✅ 2. 텍스트 추출 완료 (네이티브 97%, OCR 3%)</li>
+                  <li>🔄 3. 문서 구역 분류 중 (zone density 분석)</li>
+                  <li>⏳ 4. 사용자 구역 확인 대기</li>
+                  <li>⏳ 5. 조항 파싱 대기</li>
+                  <li>⏳ 6. 품질 검증 대기</li>
+                </ul>
+                <p class="mt-1 text-[11px] text-amber-700">
+                  ⚠ 스캔 페이지 감지: p.45-48 OCR 사용 (신뢰도 0.62)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- StatsCards 목업 -->
+          <div>
+            <div class="border border-slate-200 rounded-xl bg-white p-5 shadow-sm space-y-4">
+              <h2 class="text-sm font-semibold text-slate-800 mb-2">
+                전체 통계 (예시)
+              </h2>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="border border-slate-100 rounded-md p-3">
+                  <p class="text-[11px] text-slate-500 mb-1">총 계약</p>
+                  <p class="text-xl font-semibold">12건</p>
+                </div>
+                <div class="border border-slate-100 rounded-md p-3">
+                  <p class="text-[11px] text-slate-500 mb-1">분석된 조항</p>
+                  <p class="text-xl font-semibold">348개</p>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-500">
+                * 실제 값은 Supabase/분석 엔진 연결 후 자동 집계됩니다.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 하단: 최근 계약 리스트 -->
+        <section class="border border-slate-200 rounded-xl bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-800">
+              최근 업로드된 계약 (예시 데이터)
+            </h2>
+            <button
+              type="button"
+              class="text-xs text-slate-600 hover:text-slate-900 underline underline-offset-2"
+            >
+              전체 보기
+            </button>
+          </div>
+          <ul class="space-y-2 text-sm">
+            <li
+              class="flex items-center justify-between border border-slate-100 rounded-md px-3 py-2"
+            >
+              <div>
+                <p class="font-medium">
+                  EPC Turnkey Contract – Plant A
+                </p>
+                <p class="text-[11px] text-slate-500">
+                  상태: 조항 분석 완료 • 전체 리스크: Medium
+                </p>
+              </div>
+              <span class="text-[11px] text-slate-500">
+                2026-03-01 14:32
+              </span>
+            </li>
+            <li
+              class="flex items-center justify-between border border-slate-100 rounded-md px-3 py-2"
+            >
+              <div>
+                <p class="font-medium">
+                  FIDIC Red Book 2017 – Project B
+                </p>
+                <p class="text-[11px] text-slate-500">
+                  상태: 구역 검토 대기 • 분석 대상 42p / 89p
+                </p>
+              </div>
+              <span class="text-[11px] text-slate-500">
+                2026-02-27 09:15
+              </span>
+            </li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
+

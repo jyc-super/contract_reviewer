@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract Risk Review — UI Sample</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0F1117;
+    --bg-secondary: #161821;
+    --bg-tertiary: #1C1F2E;
+    --bg-card: #1A1D2B;
+    --bg-hover: #222539;
+    --border: #2A2D3E;
+    --border-light: #353850;
+    --text-primary: #E8E9ED;
+    --text-secondary: #9496A8;
+    --text-muted: #6B6E82;
+    --accent-blue: #4C8BF5;
+    --accent-blue-dim: rgba(76,139,245,0.15);
+    --accent-green: #34D399;
+    --accent-green-dim: rgba(52,211,153,0.12);
+    --accent-yellow: #FBBF24;
+    --accent-yellow-dim: rgba(251,191,36,0.12);
+    --accent-red: #F87171;
+    --accent-red-dim: rgba(248,113,113,0.12);
+    --accent-orange: #FB923C;
+    --accent-purple: #A78BFA;
+    --accent-purple-dim: rgba(167,139,250,0.12);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  /* === LAYOUT === */
+  .app-container { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px; min-height: 100vh;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; left: 0; top: 0; bottom: 0;
+    z-index: 100;
+  }
+  .main-content {
+    flex: 1; margin-left: 260px;
+    min-height: 100vh;
+  }
+  /* === SIDEBAR === */
+  .sidebar-logo {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sidebar-logo .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent-blue), #7C5CFC);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: white;
+    font-family: 'Source Serif 4', serif;
+  }
+  .sidebar-logo .logo-text {
+    font-weight: 600; font-size: 15px;
+    letter-spacing: -0.3px;
+  }
+  .sidebar-logo .logo-sub {
+    font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .sidebar-nav { flex: 1; padding: 16px 12px; }
+  .nav-section-label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-muted);
+    padding: 12px 12px 8px;
+    font-weight: 600;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius);
+    cursor: pointer; transition: var(--transition);
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 400;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--accent-blue-dim);
+    color: var(--accent-blue);
+    font-weight: 500;
+  }
+  .nav-item .nav-icon { width: 18px; text-align: center; font-size: 15px; }
+  .nav-item .nav-badge {
+    margin-left: auto;
+    background: var(--accent-red);
+    color: white; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .sidebar-quota {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+  .quota-title {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-muted);
+    margin-bottom: 10px; font-weight: 600;
+  }
+  .quota-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px; font-size: 11px;
+  }
+  .quota-label { width: 60px; color: var(--text-muted); }
+  .quota-bar {
+    flex: 1; height: 4px;
+    background: var(--bg-primary);
+    border-radius: 2px; overflow: hidden;
+  }
+  .quota-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+  .quota-value { width: 50px; text-align: right; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .quota-reset { font-size: 10px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+  /* === PAGE HEADER === */
+  .page-header {
+    padding: 24px 32px 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .page-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 24px; font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .page-subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+  .page-actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 8px 16px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: var(--transition);
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .btn-primary {
+    background: var(--accent-blue); color: white;
+  }
+  .btn-primary:hover { background: #5A96FF; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+  }
+  .btn-outline:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+  /* === PAGES === */
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-body { padding: 24px 32px; }
+  /* === CARDS === */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  .card:hover { border-color: var(--border-light); }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-body { padding: 20px; }
+  /* === STATS === */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .stat-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .stat-change { font-size: 11px; margin-top: 4px; }
+  /* === TABLE === */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    padding: 12px 16px;
+    text-align: left; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted); font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+  .data-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .data-table tr:hover td { background: var(--bg-hover); }
+  .data-table tr { cursor: pointer; }
+  /* === BADGES === */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-high { background: var(--accent-red-dim); color: var(--accent-red); }
+  .badge-medium { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+  .badge-low { background: var(--accent-green-dim); color: var(--accent-green); }
+  .badge-info { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .badge-status {
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 500;
+  }
+  .badge-done { background: var(--accent-green-dim); color: var(--accent-green); }
+  .badge-analyzing { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+  .badge-partial { background: var(--accent-orange); color: white; opacity: 0.9; }
+  .badge-error { background: var(--accent-red-dim); color: var(--accent-red); }
+  .risk-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 4px;
+  }
+  .risk-dot.high { background: var(--accent-red); }
+  .risk-dot.medium { background: var(--accent-yellow); }
+  .risk-dot.low { background: var(--accent-green); }
+  /* === UPLOAD === */
+  .upload-zone {
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    background: var(--bg-card);
+  }
+  .upload-zone:hover {
+    border-color: var(--accent-blue);
+    background: var(--accent-blue-dim);
+  }
+  .upload-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.7; }
+  .upload-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .upload-desc { color: var(--text-muted); font-size: 13px; }
+  .upload-formats { margin-top: 12px; display: flex; gap: 8px; justify-content: center; }
+  .format-tag {
+    padding: 4px 12px; border-radius: 20px;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* === PROGRESS STEPS === */
+  .progress-steps { margin-top: 32px; }
+  .step-item {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 14px 0;
+    position: relative;
+  }
+  .step-item:not(:last-child)::after {
+    content: '';
+    position: absolute; left: 15px; top: 42px;
+    width: 2px; height: calc(100% - 28px);
+    background: var(--border);
+  }
+  .step-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+    position: relative; z-index: 1;
+  }
+  .step-done { background: var(--accent-green-dim); color: var(--accent-green); }
+  .step-active { background: var(--accent-blue); color: white; animation: pulse 2s infinite; }
+  .step-waiting { background: var(--bg-tertiary); color: var(--text-muted); border: 1px solid var(--border); }
+  .step-content { flex: 1; }
+  .step-title { font-weight: 500; font-size: 13px; }
+  .step-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .step-bar { margin-top: 8px; height: 3px; background: var(--bg-primary); border-radius: 2px; overflow: hidden; }
+  .step-bar-fill { height: 100%; background: var(--accent-blue); border-radius: 2px; transition: width 1s; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(76,139,245,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(76,139,245,0); }
+  }
+  /* === ZONE REVIEW === */
+  .zone-group { margin-bottom: 20px; }
+  .zone-group-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid var(--border);
+    font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .zone-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-top: none;
+    font-size: 13px;
+  }
+  .zone-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+  .zone-check { font-size: 16px; }
+  .zone-confidence {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  .zone-actions { display: flex; gap: 6px; margin-left: 12px; }
+  .zone-btn {
+    padding: 4px 12px; border-radius: 4px;
+    font-size: 11px; cursor: pointer; border: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: var(--transition);
+  }
+  .zone-btn-include { background: var(--accent-green-dim); color: var(--accent-green); }
+  .zone-btn-include:hover { background: var(--accent-green); color: white; }
+  .zone-btn-exclude { background: var(--accent-red-dim); color: var(--accent-red); }
+  .zone-btn-exclude:hover { background: var(--accent-red); color: white; }
+  /* === CLAUSE LIST === */
+  .clause-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    margin-bottom: 8px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+  }
+  .clause-card:hover {
+    border-color: var(--border-light);
+    background: var(--bg-hover);
+  }
+  .clause-card.risk-high { border-left: 3px solid var(--accent-red); }
+  .clause-card.risk-medium { border-left: 3px solid var(--accent-yellow); }
+  .clause-card.risk-low { border-left: 3px solid var(--accent-green); }
+  .clause-card.risk-info { border-left: 3px solid var(--accent-blue); }
+  .clause-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .clause-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    color: var(--accent-blue);
+  }
+  .clause-title-text { font-weight: 600; font-size: 14px; }
+  .clause-prefix {
+    font-size: 10px; padding: 2px 6px;
+    border-radius: 3px; font-weight: 600;
+    background: var(--accent-purple-dim); color: var(--accent-purple);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .clause-body {
+    color: var(--text-secondary); font-size: 13px;
+    line-height: 1.7;
+    display: -webkit-box; -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .clause-meta {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 10px; flex-wrap: wrap;
+  }
+  .clause-keyword {
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-muted);
+  }
+  .clause-toolbar {
+    position: absolute; top: 12px; right: 12px;
+    display: flex; gap: 4px;
+    opacity: 0; transition: var(--transition);
+  }
+  .clause-card:hover .clause-toolbar { opacity: 1; }
+  .toolbar-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px;
+    transition: var(--transition);
+    color: var(--text-secondary);
+  }
+  .toolbar-btn:hover {
+    background: var(--accent-blue-dim);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+  }
+  .clause-review-badge {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 3px; font-weight: 500;
+    background: var(--accent-yellow-dim); color: var(--accent-yellow);
+  }
+  /* === ANALYSIS PANEL === */
+  .analysis-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 24px;
+  }
+  .analysis-sidebar { }
+  .analysis-detail {
+    padding: 20px;
+  }
+  .analysis-section { margin-bottom: 20px; }
+  .analysis-section-title {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-muted);
+    font-weight: 600; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .recommendation-item {
+    display: flex; gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .recommendation-item .rec-icon { color: var(--accent-blue); flex-shrink: 0; }
+  /* === FIDIC MODAL === */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    width: 90vw; max-width: 1100px;
+    max-height: 85vh;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title { font-weight: 700; font-size: 16px; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: var(--transition);
+  }
+  .modal-close:hover { background: var(--accent-red-dim); color: var(--accent-red); }
+  .modal-body { flex: 1; overflow-y: auto; }
+  .compare-panels {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-panel { padding: 20px; }
+  .compare-panel:first-child { border-right: 1px solid var(--border); }
+  .compare-panel-title {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-muted);
+    font-weight: 600; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .compare-text {
+    font-size: 13px; line-height: 1.8;
+    color: var(--text-secondary);
+  }
+  .deviation-section { padding: 20px; }
+  .deviation-card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .deviation-card.sev-critical { border-left: 3px solid var(--accent-red); }
+  .deviation-card.sev-major { border-left: 3px solid var(--accent-orange); }
+  .deviation-card.sev-minor { border-left: 3px solid var(--accent-yellow); }
+  .deviation-header {
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .deviation-aspect { font-weight: 600; font-size: 13px; }
+  .deviation-body {
+    padding: 12px 14px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; font-size: 12px;
+  }
+  .deviation-col-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px; }
+  .modal-footer {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+  /* === RISK CHART === */
+  .risk-chart {
+    display: flex; gap: 4px; align-items: flex-end;
+    height: 100px; padding: 12px 0;
+  }
+  .risk-bar {
+    flex: 1; border-radius: 4px 4px 0 0;
+    transition: height 0.5s;
+    position: relative;
+  }
+  .risk-bar-label {
+    position: absolute; bottom: -20px;
+    left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: var(--text-muted);
+    white-space: nowrap;
+  }
+  /* === FILTER BAR === */
+  .filter-bar {
+    display: flex; gap: 8px; margin-bottom: 20px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; align-items: center;
+  }
+  .filter-chip {
+    padding: 6px 14px; border-radius: 20px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    font-size: 12px; cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-secondary);
+  }
+  .filter-chip:hover { border-color: var(--text-secondary); }
+  .filter-chip.active { background: var(--accent-blue-dim); border-color: var(--accent-blue); color: var(--accent-blue); }
+  .filter-search {
+    margin-left: auto;
+    padding: 6px 14px; border-radius: 20px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 12px; outline: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    width: 200px;
+  }
+  .filter-search::placeholder { color: var(--text-muted); }
+  .filter-search:focus { border-color: var(--accent-blue); }
+  /* === RISK SUMMARY GRID === */
+  .risk-matrix {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 2px; margin-top: 12px;
+  }
+  .risk-matrix-cell {
+    padding: 8px; text-align: center;
+    font-size: 11px; border-radius: 4px;
+  }
+  .risk-matrix-header {
+    background: var(--bg-tertiary);
+    color: var(--text-muted); font-weight: 600;
+    font-size: 10px; text-transform: uppercase;
+  }
+  /* === SCROLL === */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+  /* === ANIMATION === */
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .animate-in { animation: fadeIn 0.4s ease-out; }
+  .stagger-1 { animation-delay: 0.05s; opacity:0; animation-fill-mode: forwards; }
+  .stagger-2 { animation-delay: 0.1s; opacity:0; animation-fill-mode: forwards; }
+  .stagger-3 { animation-delay: 0.15s; opacity:0; animation-fill-mode: forwards; }
+  .stagger-4 { animation-delay: 0.2s; opacity:0; animation-fill-mode: forwards; }
+  /* page-specific */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .section-divider { height: 1px; background: var(--border); margin: 24px 0; }
+  .text-mono { font-family: 'JetBrains Mono', monospace; }
+  .text-sm { font-size: 12px; }
+  .text-xs { font-size: 11px; }
+  .text-muted { color: var(--text-muted); }
+  .text-secondary { color: var(--text-secondary); }
+  .mb-4 { margin-bottom: 16px; }
+  .mb-6 { margin-bottom: 24px; }
+  .mt-4 { margin-top: 16px; }
+  .gap-4 { gap: 16px; }
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .w-full { width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+<!-- ================ SIDEBAR ================ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">C</div>
+    <div>
+      <div class="logo-text">ContractLens</div>
+      <div class="logo-sub">Risk Analysis Platform</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">메뉴</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span> 대시보드
+    </div>
+    <div class="nav-item" onclick="showPage('upload')">
+      <span class="nav-icon">📤</span> 계약서 업로드
+    </div>
+    <div class="nav-section-label">계약서</div>
+    <div class="nav-item" onclick="showPage('zones')">
+      <span class="nav-icon">📋</span> 구역 분류 확인
+      <span class="nav-badge">1</span>
+    </div>
+    <div class="nav-item" onclick="showPage('clauses')">
+      <span class="nav-icon">📑</span> 조항 분석
+    </div>
+    <div class="nav-item" onclick="showPage('report')">
+      <span class="nav-icon">📄</span> 리포트
+    </div>
+  </nav>
+  <div class="sidebar-quota">
+    <div class="quota-title">API 할당량 · 리셋 17:00 KST</div>
+    <div class="quota-row">
+      <span class="quota-label">Flash</span>
+      <div class="quota-bar"><div class="quota-bar-fill" style="width:48%;background:var(--accent-yellow)"></div></div>
+      <span class="quota-value">120/250</span>
+    </div>
+    <div class="quota-row">
+      <span class="quota-label">Lite</span>
+      <div class="quota-bar"><div class="quota-bar-fill" style="width:2%;background:var(--accent-green)"></div></div>
+      <span class="quota-value">15/1000</span>
+    </div>
+    <div class="quota-row">
+      <span class="quota-label">Pro</span>
+      <div class="quota-bar"><div class="quota-bar-fill" style="width:0%;background:var(--accent-blue)"></div></div>
+      <span class="quota-value">0/100</span>
+    </div>
+    <div class="quota-row">
+      <span class="quota-label">Embed</span>
+      <div class="quota-bar"><div class="quota-bar-fill" style="width:19%;background:var(--accent-purple)"></div></div>
+      <span class="quota-value">280/1500</span>
+    </div>
+  </div>
+</aside>
+
+<main class="main-content">
+
+<!-- ================ PAGE 1: DASHBOARD ================ -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <div>
+      <div class="page-title">대시보드</div>
+      <div class="page-subtitle">계약서 리스크 현황 요약</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="showPage('upload')">+ 새 계약서 업로드</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="stats-grid animate-in">
+      <div class="stat-card stagger-1 animate-in">
+        <div class="stat-label">총 계약서</div>
+        <div class="stat-value">7</div>
+        <div class="stat-change text-muted">최근 30일</div>
+      </div>
+      <div class="stat-card stagger-2 animate-in">
+        <div class="stat-label">고위험 조항</div>
+        <div class="stat-value" style="color:var(--accent-red)">23</div>
+        <div class="stat-change" style="color:var(--accent-red)">전체의 18%</div>
+      </div>
+      <div class="stat-card stagger-3 animate-in">
+        <div class="stat-label">분석 완료</div>
+        <div class="stat-value" style="color:var(--accent-green)">5</div>
+        <div class="stat-change text-muted">2건 진행 중</div>
+      </div>
+      <div class="stat-card stagger-4 animate-in">
+        <div class="stat-label">FIDIC 편차율</div>
+        <div class="stat-value" style="color:var(--accent-yellow)">34<span style="font-size:16px">%</span></div>
+        <div class="stat-change text-muted">평균 편차</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">최근 계약서</div>
+          <button class="btn btn-outline text-xs">전체 보기</button>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>계약서명</th>
+              <th>조항 수</th>
+              <th>리스크</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="showPage('clauses')">
+              <td>
+                <div style="font-weight:500">OO발전소 EPC 도급계약서</div>
+                <div class="text-xs text-muted">2024-12-15 · PDF · 142p</div>
+              </td>
+              <td class="text-mono">48</td>
+              <td><span class="badge badge-high"><span class="risk-dot high"></span>HIGH</span></td>
+              <td><span class="badge-status badge-done">✓ 완료</span></td>
+            </tr>
+            <tr onclick="showPage('clauses')">
+              <td>
+                <div style="font-weight:500">△△플랜트 설계계약 (FIDIC Yellow)</div>
+                <div class="text-xs text-muted">2025-01-08 · DOCX · 87p</div>
+              </td>
+              <td class="text-mono">35</td>
+              <td><span class="badge badge-medium"><span class="risk-dot medium"></span>MED</span></td>
+              <td><span class="badge-status badge-done">✓ 완료</span></td>
+            </tr>
+            <tr onclick="showPage('zones')">
+              <td>
+                <div style="font-weight:500">□□해상풍력 시공계약서</div>
+                <div class="text-xs text-muted">2025-02-20 · PDF · 215p</div>
+              </td>
+              <td class="text-mono">—</td>
+              <td><span class="text-muted">—</span></td>
+              <td><span class="badge-status badge-analyzing">⟳ 구역 확인 대기</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="font-weight:500">◇◇도로공사 시공계약</div>
+                <div class="text-xs text-muted">2025-03-01 · PDF · 98p</div>
+              </td>
+              <td class="text-mono">28</td>
+              <td><span class="badge badge-medium"><span class="risk-dot medium"></span>MED</span></td>
+              <td><span class="badge-status badge-partial">⚡ 18/28 분석</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <div class="card mb-4">
+          <div class="card-header">
+            <div class="card-title">리스크 분포</div>
+          </div>
+          <div class="card-body">
+            <div class="risk-chart">
+              <div class="risk-bar" style="height:85%;background:var(--accent-red-dim);border:1px solid var(--accent-red)">
+                <span class="risk-bar-label">HIGH (23)</span>
+              </div>
+              <div class="risk-bar" style="height:65%;background:var(--accent-yellow-dim);border:1px solid var(--accent-yellow)">
+                <span class="risk-bar-label">MED (41)</span>
+              </div>
+              <div class="risk-bar" style="height:40%;background:var(--accent-green-dim);border:1px solid var(--accent-green)">
+                <span class="risk-bar-label">LOW (32)</span>
+              </div>
+              <div class="risk-bar" style="height:25%;background:var(--accent-blue-dim);border:1px solid var(--accent-blue)">
+                <span class="risk-bar-label">INFO (30)</span>
+              </div>
+            </div>
+            <div style="height:28px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">고위험 카테고리 Top 5</div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-sm">책임 제한 (Limitation of Liability)</span>
+                <span class="badge badge-high text-xs">8건</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-sm">지체상금 (Liquidated Damages)</span>
+                <span class="badge badge-high text-xs">5건</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-sm">계약 해지 (Termination)</span>
+                <span class="badge badge-high text-xs">4건</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-sm">면책 (Indemnity)</span>
+                <span class="badge badge-high text-xs">3건</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-sm">불가항력 (Force Majeure)</span>
+                <span class="badge badge-high text-xs">3건</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================ PAGE 2: UPLOAD ================ -->
+<div id="page-upload" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">계약서 업로드</div>
+      <div class="page-subtitle">PDF 또는 DOCX 파일을 업로드하면 자동으로 전처리를 시작합니다</div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="upload-zone" id="dropzone">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title">파일을 드래그하거나 클릭하여 업로드</div>
+      <div class="upload-desc">비정형 문서, 합본 PDF, 스캔본 모두 지원합니다</div>
+      <div class="upload-formats">
+        <span class="format-tag">.pdf</span>
+        <span class="format-tag">.docx</span>
+        <span class="format-tag">최대 50MB</span>
+      </div>
+    </div>
+
+    <div class="progress-steps" id="upload-progress" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📤 □□해상풍력 시공계약서.pdf 처리 중</div>
+          <div class="text-xs text-muted">215 페이지 · 18.4 MB</div>
+        </div>
+        <div class="card-body">
+          <div class="step-item">
+            <div class="step-icon step-done">✓</div>
+            <div class="step-content">
+              <div class="step-title">1. 파일 검증</div>
+              <div class="step-desc">PDF · 215페이지 · 네이티브 텍스트 + 스캔 혼합 · 한국어+영어</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-icon step-done">✓</div>
+            <div class="step-content">
+              <div class="step-title">2. 텍스트 추출</div>
+              <div class="step-desc">하이브리드 추출 (네이티브 198p + OCR 17p) · 평균 신뢰도 94%</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-icon step-active">3</div>
+            <div class="step-content">
+              <div class="step-title">3. 문서 구역 분류</div>
+              <div class="step-desc">Docling 레이아웃 분석 + LLM 검증 진행 중...</div>
+              <div class="step-bar"><div class="step-bar-fill" style="width:67%"></div></div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-icon step-waiting">4</div>
+            <div class="step-content">
+              <div class="step-title" style="color:var(--text-muted)">4. 사용자 확인 대기</div>
+              <div class="step-desc">구역 분류 결과를 확인해주세요</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-icon step-waiting">5</div>
+            <div class="step-content">
+              <div class="step-title" style="color:var(--text-muted)">5. 조항 파싱</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-icon step-waiting">6</div>
+            <div class="step-content">
+              <div class="step-title" style="color:var(--text-muted)">6. 품질 검증</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;padding:12px 16px;background:var(--accent-yellow-dim);border-radius:var(--radius);font-size:12px;color:var(--accent-yellow);display:flex;align-items:center;gap:8px">
+            ⚠️ 스캔 페이지 감지: p.128-144는 이미지 기반입니다. OCR로 추출했으나 일부 인식 오류가 있을 수 있습니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================ PAGE 3: ZONE REVIEW ================ -->
+<div id="page-zones" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">문서 구역 분류 확인</div>
+      <div class="page-subtitle">□□해상풍력 시공계약서 · 총 215페이지 중 <strong style="color:var(--accent-green)">94페이지</strong>가 분석 대상</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" id="zone-confirm-btn">✓ 구역 분류 확인 → 조항 파싱 시작</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">분석 대상</div>
+        <div class="stat-value" style="color:var(--accent-green)">94<span style="font-size:14px">p</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">분석 제외</div>
+        <div class="stat-value" style="color:var(--text-muted)">112<span style="font-size:14px">p</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">확인 필요</div>
+        <div class="stat-value" style="color:var(--accent-yellow)">9<span style="font-size:14px">p</span></div>
+      </div>
+    </div>
+
+    <div class="zone-group">
+      <div class="zone-group-header" style="color:var(--accent-green)">
+        ✅ 분석 대상 (포함) — 3개 구역
+      </div>
+      <div class="zone-item">
+        <span class="zone-check" style="color:var(--accent-green)">✅</span>
+        <div>
+          <div style="font-weight:500">계약서 본문 (Main Agreement)</div>
+          <div class="text-xs text-muted">p.3 — p.48</div>
+        </div>
+        <div class="zone-confidence" style="color:var(--accent-green)">98%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check" style="color:var(--accent-green)">✅</span>
+        <div>
+          <div style="font-weight:500">일반조건 (General Conditions — FIDIC Silver)</div>
+          <div class="text-xs text-muted">p.49 — p.108</div>
+        </div>
+        <div class="zone-confidence" style="color:var(--accent-green)">96%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check" style="color:var(--accent-green)">✅</span>
+        <div>
+          <div style="font-weight:500">특수조건 (Particular Conditions)</div>
+          <div class="text-xs text-muted">p.109 — p.127</div>
+        </div>
+        <div class="zone-confidence" style="color:var(--accent-green)">93%</div>
+      </div>
+    </div>
+
+    <div class="zone-group">
+      <div class="zone-group-header" style="color:var(--text-muted)">
+        ⬜ 분석 제외 — 5개 구역
+      </div>
+      <div class="zone-item">
+        <span class="zone-check">⬜</span>
+        <div>
+          <div>표지 + 목차</div>
+          <div class="text-xs text-muted">p.1 — p.2</div>
+        </div>
+        <div class="zone-confidence">99%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check">⬜</span>
+        <div>
+          <div>기술사양서 (Technical Specification)</div>
+          <div class="text-xs text-muted">p.145 — p.189</div>
+        </div>
+        <div class="zone-confidence">91%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check">⬜</span>
+        <div>
+          <div>도면 목록 (Drawing List)</div>
+          <div class="text-xs text-muted">p.190 — p.198</div>
+        </div>
+        <div class="zone-confidence">88%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check">⬜</span>
+        <div>
+          <div>공정표 (Schedule)</div>
+          <div class="text-xs text-muted">p.199 — p.210</div>
+        </div>
+        <div class="zone-confidence">85%</div>
+      </div>
+      <div class="zone-item">
+        <span class="zone-check">⬜</span>
+        <div>
+          <div>서명 페이지</div>
+          <div class="text-xs text-muted">p.211 — p.215</div>
+        </div>
+        <div class="zone-confidence">97%</div>
+      </div>
+    </div>
+
+    <div class="zone-group">
+      <div class="zone-group-header" style="color:var(--accent-yellow)">
+        ❓ 확인 필요 — 1개 구역
+      </div>
+      <div class="zone-item" style="background:var(--accent-yellow-dim)">
+        <span class="zone-check" style="color:var(--accent-yellow)">❓</span>
+        <div style="flex:1">
+          <div style="font-weight:500">부속서 C — Milestone Payment Schedule</div>
+          <div class="text-xs text-muted">p.128 — p.144 (스캔본 · OCR 추출)</div>
+          <div class="text-xs" style="color:var(--accent-yellow);margin-top:4px">
+            대부분 금액 테이블이지만, 지급 조건 및 지체상금 관련 조항이 일부 포함된 것으로 보입니다
+          </div>
+        </div>
+        <div class="zone-confidence" style="color:var(--accent-yellow)">58%</div>
+        <div class="zone-actions">
+          <button class="zone-btn zone-btn-include">분석에 포함</button>
+          <button class="zone-btn zone-btn-exclude">제외</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================ PAGE 4: CLAUSE ANALYSIS ================ -->
+<div id="page-clauses" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">조항 분석</div>
+      <div class="page-subtitle">OO발전소 EPC 도급계약서 · 48개 조항 · <span style="color:var(--accent-red)">HIGH</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline">📥 리포트 내보내기</button>
+      <button class="btn btn-primary">⚡ 미분석 조항 일괄 분석</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="filter-bar">
+      <span class="filter-chip active">전체 (48)</span>
+      <span class="filter-chip" style="border-color:var(--accent-red);color:var(--accent-red)">HIGH (12)</span>
+      <span class="filter-chip">MEDIUM (18)</span>
+      <span class="filter-chip">LOW (14)</span>
+      <span class="filter-chip">INFO (4)</span>
+      <span class="filter-chip">🚩 북마크 (3)</span>
+      <input class="filter-search" placeholder="조항 검색..." />
+    </div>
+
+    <div class="analysis-layout">
+      <div>
+        <!-- Clause Cards -->
+        <div class="clause-card risk-high" onclick="openModal()">
+          <div class="clause-toolbar">
+            <div class="toolbar-btn" title="FIDIC 비교">🔍</div>
+            <div class="toolbar-btn" title="재분석">⚡</div>
+            <div class="toolbar-btn" title="복사">📋</div>
+            <div class="toolbar-btn" title="북마크">🚩</div>
+          </div>
+          <div class="clause-header">
+            <span class="clause-prefix">GC</span>
+            <span class="clause-number">17.6</span>
+            <span class="clause-title-text">Limitation of Liability</span>
+            <span class="badge badge-high" style="margin-left:auto">HIGH</span>
+          </div>
+          <div class="clause-body">
+            Neither Party shall be liable to the other Party for loss of use of any Works, loss of profit, loss of any contract, or for any indirect or consequential loss or damage which may be suffered by the other Party in connection with the Contract...
+          </div>
+          <div class="clause-meta">
+            <span class="clause-keyword">책임제한</span>
+            <span class="clause-keyword">간접손해</span>
+            <span class="clause-keyword">면책</span>
+            <span class="text-xs text-muted" style="margin-left:auto">FIDIC 편차: Critical</span>
+          </div>
+        </div>
+
+        <div class="clause-card risk-high">
+          <div class="clause-toolbar">
+            <div class="toolbar-btn">🔍</div>
+            <div class="toolbar-btn">⚡</div>
+            <div class="toolbar-btn">📋</div>
+            <div class="toolbar-btn">🚩</div>
+          </div>
+          <div class="clause-header">
+            <span class="clause-prefix">PC</span>
+            <span class="clause-number">14.2</span>
+            <span class="clause-title-text">Liquidated Damages for Delay</span>
+            <span class="badge badge-high" style="margin-left:auto">HIGH</span>
+          </div>
+          <div class="clause-body">
+            If the Contractor fails to comply with Sub-Clause 8.2 [Time for Completion], the Contractor shall pay delay damages to the Employer for this default. These delay damages shall be the sum stated in the Particular Conditions...
+          </div>
+          <div class="clause-meta">
+            <span class="clause-keyword">지체상금</span>
+            <span class="clause-keyword">공기</span>
+            <span class="clause-keyword">완공</span>
+            <span class="clause-review-badge" style="margin-left:auto">자동 분리 · 검토 필요</span>
+          </div>
+        </div>
+
+        <div class="clause-card risk-medium">
+          <div class="clause-toolbar">
+            <div class="toolbar-btn">🔍</div>
+            <div class="toolbar-btn">⚡</div>
+            <div class="toolbar-btn">📋</div>
+            <div class="toolbar-btn">🚩</div>
+          </div>
+          <div class="clause-header">
+            <span class="clause-prefix">GC</span>
+            <span class="clause-number">20.1</span>
+            <span class="clause-title-text">Contractor's Claims</span>
+            <span class="badge badge-medium" style="margin-left:auto">MEDIUM</span>
+          </div>
+          <div class="clause-body">
+            If the Contractor considers himself to be entitled to any extension of the Time for Completion and/or any additional payment, the Contractor shall give notice to the Engineer within 28 days after the event or circumstance...
+          </div>
+          <div class="clause-meta">
+            <span class="clause-keyword">클레임</span>
+            <span class="clause-keyword">28일</span>
+            <span class="clause-keyword">통지</span>
+          </div>
+        </div>
+
+        <div class="clause-card risk-low">
+          <div class="clause-toolbar">
+            <div class="toolbar-btn">🔍</div>
+            <div class="toolbar-btn">⚡</div>
+            <div class="toolbar-btn">📋</div>
+            <div class="toolbar-btn">🚩</div>
+          </div>
+          <div class="clause-header">
+            <span class="clause-prefix">GC</span>
+            <span class="clause-number">1.1</span>
+            <span class="clause-title-text">Definitions</span>
+            <span class="badge badge-low" style="margin-left:auto">LOW</span>
+          </div>
+          <div class="clause-body">
+            In the Conditions of Contract ("these Conditions"), which include Particular Conditions, Annexes, and these General Conditions, the following words and expressions shall have the meanings stated...
+          </div>
+          <div class="clause-meta">
+            <span class="clause-keyword">정의</span>
+            <span class="clause-keyword">용어</span>
+          </div>
+        </div>
+
+        <div class="clause-card risk-info">
+          <div class="clause-header">
+            <span class="clause-prefix">GC</span>
+            <span class="clause-number">1.2</span>
+            <span class="clause-title-text">Interpretation</span>
+            <span class="badge badge-info" style="margin-left:auto">INFO</span>
+          </div>
+          <div class="clause-body">
+            In the Contract, except where the context requires otherwise, words indicating one gender include all genders, words indicating the singular also include the plural...
+          </div>
+          <div class="clause-meta">
+            <span class="clause-keyword">해석</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Selected Clause Analysis Detail -->
+      <div class="analysis-sidebar">
+        <div class="card" style="position:sticky;top:24px">
+          <div class="card-header" style="background:var(--accent-red-dim)">
+            <div>
+              <div class="card-title">GC 17.6 — Limitation of Liability</div>
+              <div class="text-xs" style="color:var(--accent-red);margin-top:2px">HIGH RISK</div>
+            </div>
+            <span class="badge badge-high">HIGH</span>
+          </div>
+          <div class="analysis-detail">
+            <div class="analysis-section">
+              <div class="analysis-section-title">리스크 요약</div>
+              <p class="text-sm" style="color:var(--text-secondary);line-height:1.7">
+                본 조항은 시공자의 <strong style="color:var(--accent-red)">책임 한도를 명시하지 않아</strong>
+                무한 책임이 발생할 수 있습니다. FIDIC Silver Book Sub-Clause 17.6은 계약 금액의 일정 비율로
+                책임을 제한하는 것을 권고하나, 본 계약서에는 해당 제한이 없습니다.
+              </p>
+            </div>
+            <div class="analysis-section">
+              <div class="analysis-section-title">수정 권고사항</div>
+              <div class="recommendation-item">
+                <span class="rec-icon">→</span>
+                <span>책임 한도를 계약금액의 100% 이내로 명시하는 조항 추가</span>
+              </div>
+              <div class="recommendation-item">
+                <span class="rec-icon">→</span>
+                <span>간접 손해(consequential loss) 면책 조항의 상호성 확보</span>
+              </div>
+              <div class="recommendation-item">
+                <span class="rec-icon">→</span>
+                <span>전문가 배상책임보험(PI Insurance) 가입 의무 조항 협의</span>
+              </div>
+            </div>
+            <div class="analysis-section">
+              <div class="analysis-section-title">FIDIC 비교</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-tertiary);border-radius:var(--radius)">
+                <div>
+                  <div class="text-sm" style="font-weight:500">Silver Book 2017 · Cl. 17.6</div>
+                  <div class="text-xs text-muted">편차 수준: Critical</div>
+                </div>
+                <button class="btn btn-outline text-xs" onclick="openModal()">비교 상세 보기</button>
+              </div>
+            </div>
+            <div class="analysis-section">
+              <div class="analysis-section-title">분석 메타</div>
+              <div class="text-xs text-muted" style="display:flex;flex-direction:column;gap:4px">
+                <div>모델: gemini-2.5-flash · 신뢰도: 교차 검증 일치</div>
+                <div>분석 일시: 2025-03-04 14:22 KST</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================ PAGE 5: REPORT ================ -->
+<div id="page-report" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">분석 리포트</div>
+      <div class="page-subtitle">OO발전소 EPC 도급계약서 · Executive Summary</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline">📄 PDF 내보내기</button>
+      <button class="btn btn-outline">📝 DOCX 내보내기</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="card mb-6">
+      <div class="card-header">
+        <div class="card-title">Executive Summary</div>
+      </div>
+      <div class="card-body" style="line-height:1.8;color:var(--text-secondary)">
+        <p style="font-size:14px;margin-bottom:16px">
+          본 계약서는 FIDIC Silver Book 2017을 기반으로 작성되었으나,
+          <strong style="color:var(--accent-red)">12개 고위험 조항</strong>에서 시공자에게 불리한 편차가 확인되었습니다.
+          특히 <strong>책임 제한(Cl.17.6)</strong>, <strong>지체상금(Cl.14.2)</strong>,
+          <strong>계약 해지(Cl.15.2)</strong> 조항에서 FIDIC 표준 대비 중대한 편차가 있으며,
+          수정 협상을 강력히 권고합니다.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div style="padding:16px;background:var(--accent-red-dim);border-radius:var(--radius);text-align:center">
+            <div style="font-size:24px;font-weight:700;color:var(--accent-red);font-family:'JetBrains Mono'">12</div>
+            <div class="text-xs" style="color:var(--accent-red)">고위험 조항</div>
+          </div>
+          <div style="padding:16px;background:var(--accent-yellow-dim);border-radius:var(--radius);text-align:center">
+            <div style="font-size:24px;font-weight:700;color:var(--accent-yellow);font-family:'JetBrains Mono'">18</div>
+            <div class="text-xs" style="color:var(--accent-yellow)">중위험 조항</div>
+          </div>
+          <div style="padding:16px;background:var(--accent-green-dim);border-radius:var(--radius);text-align:center">
+            <div style="font-size:24px;font-weight:700;color:var(--accent-green);font-family:'JetBrains Mono'">14</div>
+            <div class="text-xs" style="color:var(--accent-green)">저위험 조항</div>
+          </div>
+          <div style="padding:16px;background:var(--accent-purple-dim);border-radius:var(--radius);text-align:center">
+            <div style="font-size:24px;font-weight:700;color:var(--accent-purple);font-family:'JetBrains Mono'">73<span style="font-size:14px">%</span></div>
+            <div class="text-xs" style="color:var(--accent-purple)">Employer-Friendly</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-6">
+      <div class="card-header">
+        <div class="card-title">리스크 매트릭스</div>
+        <span class="text-xs text-muted">카테고리 × 리스크 등급</span>
+      </div>
+      <div class="card-body">
+        <table class="data-table" style="font-size:12px">
+          <thead>
+            <tr>
+              <th>카테고리</th>
+              <th style="text-align:center;color:var(--accent-red)">HIGH</th>
+              <th style="text-align:center;color:var(--accent-yellow)">MED</th>
+              <th style="text-align:center;color:var(--accent-green)">LOW</th>
+              <th>대표 조항</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:500">책임 · 면책</td>
+              <td style="text-align:center"><span class="badge badge-high">3</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">2</span></td>
+              <td style="text-align:center">—</td>
+              <td class="text-mono text-xs">GC 17.1, 17.6, PC 17.6A</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">대금 · 지급</td>
+              <td style="text-align:center"><span class="badge badge-high">2</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">4</span></td>
+              <td style="text-align:center"><span class="badge badge-low">1</span></td>
+              <td class="text-mono text-xs">GC 14.1, 14.2, 14.7</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">공기 · 지연</td>
+              <td style="text-align:center"><span class="badge badge-high">2</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">3</span></td>
+              <td style="text-align:center"><span class="badge badge-low">2</span></td>
+              <td class="text-mono text-xs">GC 8.2, 8.7, PC 8.2A</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">계약해지</td>
+              <td style="text-align:center"><span class="badge badge-high">3</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">1</span></td>
+              <td style="text-align:center">—</td>
+              <td class="text-mono text-xs">GC 15.1, 15.2, 16.2</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">클레임 · 분쟁</td>
+              <td style="text-align:center"><span class="badge badge-high">1</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">4</span></td>
+              <td style="text-align:center"><span class="badge badge-low">3</span></td>
+              <td class="text-mono text-xs">GC 20.1, 20.2, 21.1</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">불가항력</td>
+              <td style="text-align:center"><span class="badge badge-high">1</span></td>
+              <td style="text-align:center"><span class="badge badge-medium">2</span></td>
+              <td style="text-align:center"><span class="badge badge-low">1</span></td>
+              <td class="text-mono text-xs">GC 18.1, 18.4</td>
+            </tr>
+            <tr>
+              <td style="font-weight:500">기타</td>
+              <td style="text-align:center">—</td>
+              <td style="text-align:center"><span class="badge badge-medium">2</span></td>
+              <td style="text-align:center"><span class="badge badge-low">7</span></td>
+              <td class="text-mono text-xs">GC 1.1, 1.2, 2.1 외</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">고위험 조항 상세 분석 (Top 5)</div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>조항</th>
+              <th>리스크 요약</th>
+              <th>FIDIC 편차</th>
+              <th>핵심 권고</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="text-mono" style="color:var(--accent-blue)">GC 17.6</span><br>
+                <span class="text-xs">Limitation of Liability</span>
+              </td>
+              <td class="text-sm">책임 한도 미지정 — 무한 책임 노출</td>
+              <td><span class="badge badge-high">Critical</span></td>
+              <td class="text-sm">계약금액 100% 이내 한도 명시</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="text-mono" style="color:var(--accent-blue)">PC 14.2</span><br>
+                <span class="text-xs">Liquidated Damages</span>
+              </td>
+              <td class="text-sm">지체상금률 일 0.5% — FIDIC 권고 대비 2배</td>
+              <td><span class="badge badge-high">Critical</span></td>
+              <td class="text-sm">0.25% 이하로 협상, 상한선 10% 설정</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="text-mono" style="color:var(--accent-blue)">GC 15.2</span><br>
+                <span class="text-xs">Termination by Employer</span>
+              </td>
+              <td class="text-sm">사유 없는 해지권 + 보상 조항 부재</td>
+              <td><span class="badge badge-high">Critical</span></td>
+              <td class="text-sm">해지 시 합리적 보상 조항 추가</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="text-mono" style="color:var(--accent-blue)">GC 17.1</span><br>
+                <span class="text-xs">Indemnities</span>
+              </td>
+              <td class="text-sm">일방적 면책 — 시공자만 면책 의무</td>
+              <td><span class="badge badge-high">Major</span></td>
+              <td class="text-sm">상호 면책(mutual indemnity)으로 수정</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="text-mono" style="color:var(--accent-blue)">GC 20.1</span><br>
+                <span class="text-xs">Contractor's Claims</span>
+              </td>
+              <td class="text-sm">통지 기한 28일 → 14일로 단축됨</td>
+              <td><span class="badge badge-medium">Major</span></td>
+              <td class="text-sm">FIDIC 표준 28일로 복원 협상</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ================ FIDIC COMPARE MODAL ================ -->
+<div class="modal-overlay" id="fidic-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">FIDIC 조항 비교 — GC 17.6 Limitation of Liability</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="compare-panels">
+        <div class="compare-panel">
+          <div class="compare-panel-title">📄 현재 계약 조항</div>
+          <div class="compare-text">
+            <p>Neither Party shall be liable to the other Party for loss of use of any Works, loss of profit, loss of any contract, or for any indirect or consequential loss or damage which may be suffered by the other Party in connection with the Contract, other than as specifically provided in Sub-Clause 16.4 and Sub-Clause 17.1.</p>
+            <p style="margin-top:12px;padding:8px 12px;background:var(--accent-red-dim);border-radius:4px;font-size:12px;color:var(--accent-red)">
+              ⚠️ 총 책임 한도(aggregate liability cap) 조항이 <strong>부재</strong>합니다
+            </p>
+          </div>
+        </div>
+        <div class="compare-panel">
+          <div class="compare-panel-title">📘 FIDIC Silver Book 2017 · Sub-Clause 17.6</div>
+          <div class="compare-text">
+            <p>FIDIC Silver Book 2017에서는 시공자의 총 책임 한도를 계약 금액(Accepted Contract Amount)으로 제한하는 것을 표준으로 합니다. 간접 손해에 대한 면책은 양 당사자 모두에게 적용되며, 고의적 불법행위(willful default)는 제외됩니다.</p>
+            <p style="margin-top:12px;padding:8px 12px;background:var(--accent-green-dim);border-radius:4px;font-size:12px;color:var(--accent-green)">
+              ✓ FIDIC 표준: 계약금액 이내 책임 한도 + 상호 면책
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="deviation-section">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;margin-bottom:12px">
+          📊 차이점 분석 — 3개 편차 감지
+        </div>
+        <div class="deviation-card sev-critical">
+          <div class="deviation-header">
+            <span class="deviation-aspect">총 책임 한도 (Aggregate Liability Cap)</span>
+            <span class="badge badge-high">Critical</span>
+          </div>
+          <div class="deviation-body">
+            <div>
+              <div class="deviation-col-label">현재 계약서</div>
+              <div style="color:var(--accent-red)">총 책임 한도 조항 없음 — 시공자가 무한 책임을 부담</div>
+            </div>
+            <div>
+              <div class="deviation-col-label">FIDIC 표준</div>
+              <div style="color:var(--accent-green)">Accepted Contract Amount로 책임 한도 설정</div>
+            </div>
+          </div>
+        </div>
+        <div class="deviation-card sev-major">
+          <div class="deviation-header">
+            <span class="deviation-aspect">면책의 상호성 (Mutuality of Indemnity)</span>
+            <span class="badge badge-medium">Major</span>
+          </div>
+          <div class="deviation-body">
+            <div>
+              <div class="deviation-col-label">현재 계약서</div>
+              <div style="color:var(--accent-yellow)">간접손해 면책이 시공자에게만 불리하게 적용</div>
+            </div>
+            <div>
+              <div class="deviation-col-label">FIDIC 표준</div>
+              <div>양 당사자에게 동등한 간접손해 면책 적용</div>
+            </div>
+          </div>
+        </div>
+        <div class="deviation-card sev-minor">
+          <div class="deviation-header">
+            <span class="deviation-aspect">예외 사유 범위 (Exceptions)</span>
+            <span class="badge badge-low">Minor</span>
+          </div>
+          <div class="deviation-body">
+            <div>
+              <div class="deviation-col-label">현재 계약서</div>
+              <div>Sub-Clause 16.4와 17.1만 예외로 명시</div>
+            </div>
+            <div>
+              <div class="deviation-col-label">FIDIC 표준</div>
+              <div>고의적 불법행위(willful default)도 명시적 예외</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:14px;background:var(--bg-tertiary);border-radius:var(--radius);font-size:13px;line-height:1.7;color:var(--text-secondary)">
+          <strong style="color:var(--text-primary)">전체 평가:</strong>
+          본 조항은 FIDIC Silver Book 2017 표준 대비 <strong style="color:var(--accent-red)">시공자에게 현저히 불리</strong>합니다.
+          책임 한도 부재로 프로젝트 전체 가치를 초과하는 손해배상 청구에 노출될 위험이 있으며,
+          면책 조항의 비대칭성은 분쟁 시 시공자의 입지를 약화시킵니다.
+          <strong>수정 협상 최우선 대상</strong>으로 분류합니다.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">닫기</button>
+      <button class="btn btn-primary">💾 결과 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (id === 'upload') {
+    setTimeout(() => {
+      document.getElementById('upload-progress').style.display = 'block';
+    }, 800);
+  }
+}
+function openModal() {
+  document.getElementById('fidic-modal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('fidic-modal').classList.remove('active');
+}
+document.getElementById('fidic-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.getElementById('dropzone').addEventListener('click', function() {
+  document.getElementById('upload-progress').style.display = 'block';
+});
+</script>
+</body>
+</html>

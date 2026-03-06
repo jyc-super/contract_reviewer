@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContractLens — 설정</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Source+Serif+4:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary:#0F1117;--bg-secondary:#161821;--bg-tertiary:#1C1F2E;
+    --bg-card:#1A1D2B;--bg-hover:#222539;
+    --border:#2A2D3E;--border-light:#353850;
+    --text-primary:#E8E9ED;--text-secondary:#9496A8;--text-muted:#6B6E82;
+    --accent-blue:#4C8BF5;--accent-blue-dim:rgba(76,139,245,0.15);
+    --accent-green:#34D399;--accent-green-dim:rgba(52,211,153,0.12);
+    --accent-yellow:#FBBF24;--accent-yellow-dim:rgba(251,191,36,0.12);
+    --accent-red:#F87171;--accent-red-dim:rgba(248,113,113,0.12);
+    --radius:8px;--radius-lg:12px;--transition:0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg-primary);color:var(--text-primary);font-size:14px;line-height:1.6}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:260px;background:var(--bg-secondary);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column}
+  .sidebar-logo{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#4C8BF5,#7C5CFC);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;font-family:'Source Serif 4',serif}
+  .logo-text{font-weight:600;font-size:15px}
+  .logo-sub{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px}
+  .nav{flex:1;padding:16px 12px}
+  .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);padding:12px 12px 8px;font-weight:600}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);cursor:pointer;color:var(--text-secondary);font-size:13px;margin-bottom:2px;transition:var(--transition)}
+  .nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .nav-item.active{background:var(--accent-blue-dim);color:var(--accent-blue);font-weight:500}
+  .nav-icon{width:18px;text-align:center;font-size:15px}
+  .main{flex:1;margin-left:260px}
+  .page-header{padding:24px 32px 0}
+  .page-title{font-family:'Source Serif 4',serif;font-size:24px;font-weight:700}
+  .page-subtitle{color:var(--text-secondary);font-size:13px;margin-top:4px}
+  .page-body{padding:24px 32px;max-width:800px}
+  .settings-section{margin-bottom:32px}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .section-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .section-desc{font-size:12px;color:var(--text-muted);margin-top:2px}
+  .status-badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600}
+  .status-connected{background:var(--accent-green-dim);color:var(--accent-green)}
+  .status-disconnected{background:var(--accent-red-dim);color:var(--accent-red)}
+  .input-group{margin-bottom:16px}
+  .input-label{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .input-required{color:var(--accent-red);font-size:10px}
+  .input-field{width:100%;padding:10px 14px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;transition:var(--transition)}
+  .input-field:focus{border-color:var(--accent-blue)}
+  .input-field::placeholder{color:var(--text-muted)}
+  .input-field.has-value{border-color:var(--accent-green)}
+  .input-hint{font-size:11px;color:var(--text-muted);margin-top:4px}
+  .input-hint a{color:var(--accent-blue);text-decoration:none}
+  .input-hint a:hover{text-decoration:underline}
+  .input-wrapper{position:relative}
+  .input-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px}
+  .input-eye:hover{color:var(--text-secondary)}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+  .card-body{padding:20px}
+  .btn{padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:var(--transition);font-family:'Noto Sans KR',sans-serif;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:var(--accent-blue);color:white}
+  .btn-primary:hover{background:#5A96FF}
+  .btn-outline{background:transparent;border:1px solid var(--border-light);color:var(--text-secondary)}
+  .btn-outline:hover{border-color:var(--text-secondary);color:var(--text-primary)}
+  .btn-green{background:var(--accent-green);color:#0F1117;font-weight:600}
+  .btn-green:hover{opacity:0.9}
+  .btn-row{display:flex;gap:8px;margin-top:16px}
+  .test-result{margin-top:12px;padding:10px 14px;border-radius:var(--radius);font-size:12px;display:none}
+  .test-result.success{display:block;background:var(--accent-green-dim);color:var(--accent-green);border:1px solid rgba(52,211,153,0.2)}
+  .divider{height:1px;background:var(--border);margin:32px 0}
+  .info-box{padding:14px 16px;border-radius:var(--radius);font-size:12px;line-height:1.7}
+  .info-box.blue{background:var(--accent-blue-dim);color:#93B8F7;border:1px solid rgba(76,139,245,0.15)}
+  .info-box.yellow{background:var(--accent-yellow-dim);color:#FDD872;border:1px solid rgba(251,191,36,0.15)}
+  .info-box.green{background:var(--accent-green-dim);color:var(--accent-green);border:1px solid rgba(52,211,153,0.15)}
+  .env-summary{display:flex;gap:16px;margin-bottom:24px;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);flex-wrap:wrap}
+  .env-item{display:flex;align-items:center;gap:8px;font-size:13px}
+  .env-dot{width:8px;height:8px;border-radius:50%}
+  .env-dot.ok{background:var(--accent-green)}
+  .env-dot.fail{background:var(--accent-red)}
+  .help-toggle{font-size:12px;color:var(--accent-blue);cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:4px}
+  .help-toggle:hover{text-decoration:underline}
+  .help-content{display:none;margin-top:8px;padding:12px 16px;background:var(--bg-tertiary);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);line-height:1.8}
+  .help-content.open{display:block}
+  .help-content code{background:var(--bg-primary);padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent-blue)}
+  .help-content ol{padding-left:20px}
+  .help-content li{margin-bottom:8px}
+  .sys-status-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px}
+  .sys-status-item{padding:14px 16px;background:var(--bg-tertiary);border-radius:var(--radius);border:1px solid var(--border)}
+  .sys-status-item .sys-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:6px;font-weight:600}
+  .sys-status-item .sys-value{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px}
+  .sys-status-item .sys-detail{font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">C</div>
+    <div><div class="logo-text">ContractLens</div><div class="logo-sub">Risk Analysis Platform</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">메뉴</div>
+    <div class="nav-item"><span class="nav-icon">📊</span> 대시보드</div>
+    <div class="nav-item"><span class="nav-icon">📤</span> 계약서 업로드</div>
+    <div class="nav-label">계약서</div>
+    <div class="nav-item"><span class="nav-icon">📋</span> 구역 분류 확인</div>
+    <div class="nav-item"><span class="nav-icon">📑</span> 조항 분석</div>
+    <div class="nav-item"><span class="nav-icon">📄</span> 리포트</div>
+    <div class="nav-label">시스템</div>
+    <div class="nav-item active"><span class="nav-icon">⚙️</span> 설정</div>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <div class="page-title">설정</div>
+    <div class="page-subtitle">외부 서비스 연결 — 한 번 설정하면 문제가 생길 때까지 변경할 필요 없습니다</div>
+  </div>
+  <div class="page-body">
+
+    <!-- Status Summary -->
+    <div class="env-summary">
+      <div class="env-item"><span class="env-dot ok"></span><strong>Supabase</strong><span style="color:var(--accent-green);font-size:12px">연결됨</span></div>
+      <div class="env-item"><span class="env-dot ok"></span><strong>Gemini API</strong><span style="color:var(--accent-green);font-size:12px">연결됨</span></div>
+      <div class="env-item"><span class="env-dot ok"></span><strong>Docling</strong><span style="color:var(--accent-green);font-size:12px">자동 감지</span></div>
+      <div class="env-item" style="margin-left:auto;color:var(--accent-green);font-size:12px;font-weight:600">✓ 모든 서비스 정상</div>
+    </div>
+
+    <!-- 1. SUPABASE -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title"><span style="font-size:20px">🗄️</span> Supabase (데이터베이스)</div>
+          <div class="section-desc">계약서, 조항, 분석 결과를 저장하는 데이터베이스 + 파일 저장소</div>
+        </div>
+        <span class="status-badge status-connected">✓ 연결됨</span>
+      </div>
+      <div class="card"><div class="card-body">
+        <div class="input-group">
+          <div class="input-label">Supabase URL <span class="input-required">필수</span></div>
+          <input class="input-field has-value" type="text" value="https://abcdefgh.supabase.co" placeholder="https://your-project.supabase.co" />
+          <div class="input-hint"><a href="https://supabase.com/dashboard" target="_blank">supabase.com</a> → 프로젝트 설정 → API → Project URL</div>
+        </div>
+        <div class="input-group">
+          <div class="input-label">Service Role Key <span class="input-required">필수</span></div>
+          <div class="input-wrapper">
+            <input class="input-field has-value" type="password" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." placeholder="eyJhbGciOiJIUzI1NiIs..." />
+            <button class="input-eye" onclick="togglePassword(this)">👁</button>
+          </div>
+          <div class="input-hint">프로젝트 설정 → API → <code>service_role</code> 키 (anon 키 아님)</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="testConnection('supabase')">🔌 연결 테스트</button>
+          <button class="btn btn-primary">💾 저장</button>
+        </div>
+        <div class="test-result success" id="test-supabase">✓ Supabase 연결 성공 — 7개 테이블 확인, pgvector 활성화 확인</div>
+        <div class="help-toggle" onclick="toggleHelp('help-supabase')">📖 Supabase 설정 방법 보기 ▾</div>
+        <div class="help-content" id="help-supabase">
+          <ol>
+            <li><a href="https://supabase.com" target="_blank" style="color:var(--accent-blue)">supabase.com</a>에서 무료 계정 생성 → New Project</li>
+            <li>Region: <strong>Northeast Asia (Seoul)</strong></li>
+            <li>Settings → API 탭에서 Project URL과 service_role 키 복사</li>
+            <li>SQL Editor에서 CLAUDE.md의 스키마 SQL 실행</li>
+          </ol>
+          <div class="info-box blue" style="margin-top:8px">💡 무료 티어: 500MB DB, 1GB Storage. 개인 프로젝트에 충분합니다.</div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 2. GEMINI API -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title"><span style="font-size:20px">🤖</span> Gemini API (AI 분석)</div>
+          <div class="section-desc">조항 리스크 분석, FIDIC 비교, 구역 분류 등 모든 AI 판단을 수행</div>
+        </div>
+        <span class="status-badge status-connected">✓ 연결됨</span>
+      </div>
+      <div class="card"><div class="card-body">
+        <div class="input-group">
+          <div class="input-label">Gemini API Key <span class="input-required">필수</span></div>
+          <div class="input-wrapper">
+            <input class="input-field has-value" type="password" value="AIzaSyB..." placeholder="AIzaSy..." />
+            <button class="input-eye" onclick="togglePassword(this)">👁</button>
+          </div>
+          <div class="input-hint"><a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> → Get API Key → Create API Key · 신용카드 불필요</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="testConnection('gemini')">🔌 연결 테스트</button>
+          <button class="btn btn-primary">💾 저장</button>
+        </div>
+        <div class="test-result success" id="test-gemini">✓ Gemini 연결 성공 — 무료 티어, 3.1 Flash Lite 500 RPD, Gemma 27B 14,400 RPD</div>
+        <div class="help-toggle" onclick="toggleHelp('help-gemini')">📖 API 키 발급 방법 보기 ▾</div>
+        <div class="help-content" id="help-gemini">
+          <ol>
+            <li><a href="https://aistudio.google.com" target="_blank" style="color:var(--accent-blue)">aistudio.google.com</a> 접속 (Google 로그인)</li>
+            <li>Get API Key → Create API Key 클릭</li>
+            <li>생성된 키(<code>AIzaSy...</code>)를 위 입력란에 붙여넣기</li>
+          </ol>
+          <div class="info-box blue" style="margin-top:8px">💡 무료 티어로 하루 약 6건 계약서(40조항 기준) 분석 가능.</div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SYSTEM STATUS (auto-detected) -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title"><span style="font-size:20px">🖥️</span> 시스템 상태</div>
+          <div class="section-desc">자동 감지 — 직접 설정할 필요 없습니다</div>
+        </div>
+        <button class="btn btn-outline" onclick="refreshStatus()" style="font-size:12px">↻ 새로고침</button>
+      </div>
+      <div class="card"><div class="card-body">
+        <div class="sys-status-grid">
+          <div class="sys-status-item">
+            <div class="sys-label">Docling (문서 파싱)</div>
+            <div class="sys-value"><span class="env-dot ok"></span><span style="color:var(--accent-green)">실행 중</span></div>
+            <div class="sys-detail">localhost:5001 · v2.75.0</div>
+          </div>
+          <div class="sys-status-item">
+            <div class="sys-label">Supabase DB</div>
+            <div class="sys-value"><span class="env-dot ok"></span><span style="color:var(--accent-green)">정상</span></div>
+            <div class="sys-detail">7 tables · pgvector ✓</div>
+          </div>
+          <div class="sys-status-item">
+            <div class="sys-label">Gemini 할당량</div>
+            <div class="sys-value"><span class="env-dot ok"></span><span style="color:var(--accent-green)">여유</span></div>
+            <div class="sys-detail">FlashLite 420/500 남음</div>
+          </div>
+        </div>
+
+        <!-- Docling 미감지 시에만 표시 -->
+        <div id="docling-warn" style="display:none;margin-top:16px">
+          <div class="info-box yellow">
+            ⚠️ <strong>Docling이 감지되지 않습니다.</strong> Docker로 실행해주세요:
+            <pre style="background:var(--bg-primary);padding:10px 14px;border-radius:6px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent-green);overflow-x:auto">docker run -d --name docling -p 5001:5001 --restart unless-stopped quay.io/docling-project/docling-serve</pre>
+            <span style="font-size:11px;color:var(--text-muted)">첫 실행 시 모델 다운로드로 5~10분 소요. 이후 자동 시작.</span>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- API QUOTA -->
+    <div class="settings-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title"><span style="font-size:20px">📊</span> API 할당량</div>
+          <div class="section-desc">Gemini 무료 티어 일일 사용량 — 매일 17:00 KST 리셋</div>
+        </div>
+      </div>
+      <div class="card"><div class="card-body">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted)">모델</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted)">역할</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted)">RPM</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted)">RPD</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted)">오늘 사용</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-blue)">3.1 Flash Lite</td>
+              <td style="padding:10px 12px;color:var(--text-secondary)">★ 핵심 분석</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">15</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700">500</td>
+              <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden"><div style="width:16%;height:100%;background:var(--accent-green);border-radius:3px"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);min-width:55px;text-align:right">80/500</span></div></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px">2.5 Flash</td>
+              <td style="padding:10px 12px;color:var(--text-muted)">교차 검증</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">5</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">20</td>
+              <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden"><div style="width:25%;height:100%;background:var(--accent-yellow);border-radius:3px"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);min-width:55px;text-align:right">5/20</span></div></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px">Gemma 27B</td>
+              <td style="padding:10px 12px;color:var(--text-muted)">전처리·분류</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">30</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">14,400</td>
+              <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden"><div style="width:0.06%;height:100%;background:var(--accent-green);border-radius:3px"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);min-width:55px;text-align:right">8/14.4K</span></div></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px">Gemma 12B</td>
+              <td style="padding:10px 12px;color:var(--text-muted)">조항 분리</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">30</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">14,400</td>
+              <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden"><div style="width:0.03%;height:100%;background:var(--accent-green);border-radius:3px"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);min-width:55px;text-align:right">5/14.4K</span></div></td>
+            </tr>
+            <tr>
+              <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px">Embedding</td>
+              <td style="padding:10px 12px;color:var(--text-muted)">벡터 생성</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">100</td>
+              <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace">1,000</td>
+              <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden"><div style="width:4%;height:100%;background:var(--accent-green);border-radius:3px"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);min-width:55px;text-align:right">40/1K</span></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg-tertiary);border-radius:var(--radius);display:flex;justify-content:space-between;align-items:center;font-size:12px">
+          <span style="color:var(--text-muted)">리셋: 매일 17:00 KST (midnight PT)</span>
+          <span style="color:var(--accent-green);font-weight:500">오늘 추가 분석 가능: ~5건</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SAVE ALL -->
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="info-box green" style="flex:1;margin-right:16px">
+        ✓ 설정은 데이터베이스에 저장됩니다. 서버 재시작·재배포 후에도 유지됩니다.
+      </div>
+      <button class="btn btn-green" style="padding:12px 24px;font-size:14px">✓ 모든 설정 저장</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+function togglePassword(btn){const i=btn.parentElement.querySelector('input');i.type=i.type==='password'?'text':'password';btn.textContent=i.type==='password'?'👁':'🙈'}
+function toggleHelp(id){document.getElementById(id).classList.toggle('open')}
+function testConnection(s){document.getElementById('test-'+s).style.display='block'}
+function refreshStatus(){alert('시스템 상태를 새로고침했습니다.')}
+</script>
+</body>
+</html>

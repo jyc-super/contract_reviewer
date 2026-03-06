@@ -1,0 +1,39 @@
+---
+description: 전체 프로젝트를 Gemini·Gemma·Supabase·Vercel 등 무료 티어/비과금 인프라 기준으로 개발하기 위한 기본 규칙
+alwaysApply: true
+---
+
+# 비과금(Free Tier) 기본 규칙
+
+이 프로젝트에서 AI/인프라를 설계·구현할 때는 **항상 무료 티어 또는 자체 호스팅만 사용**한다.
+
+## 인프라/서비스 사용 원칙
+
+- 유료 LLM, 유료 클라우드/SaaS/호스팅 플랜은 사용하지 않는다.
+- 기본 조합은 다음을 벗어나지 않는다:
+  - Vercel Hobby (Next.js 호스팅 + 서버리스 함수)
+  - Supabase Free (DB, Auth, Storage, pgvector)
+  - Gemini Free Tier (3.1 Flash Lite PRIMARY, Flash 계열 RESERVE, gemini-embedding-001)
+  - Gemma Free Tier (gemma-3-27b/12b/4b — 전처리/분류 전담, RPD 14,400)
+  - Docling (로컬 Docker 또는 무료 VM에서 자체 호스팅)
+
+## Gemini/Gemma 사용 원칙
+
+- 모든 모델 호출 전에 `canCall()` + `waitForRateLimit()`으로 할당량/RPM을 확인한다.
+- **핵심 분석(리스크, FIDIC 비교)**: gemini-3.1-flash-lite (RPD 500) 사용. 이것이 하루 처리량의 병목.
+- **교차 검증**: Flash 계열(2.5 Flash, 2.5 Flash Lite, 3 Flash) — RPD 20씩. HIGH 리스크만.
+- **전처리(구역 분류, 조항 분리, 품질 검증)**: Gemma 모델 사용 (RPD 14,400, 사실상 무제한).
+- **임베딩**: gemini-embedding-001 (RPD 1,000).
+- **Pro 모델(RPD 0)은 절대 사용 금지**.
+
+## Gemma 사용 시 주의
+
+- Gemma TPM이 15K로 매우 적음 → 입력 300자 이내, 프롬프트 200토큰 이내로 압축.
+- Gemma에는 **영어 프롬프트** 사용 (토큰 효율).
+- 법률적 판단이 필요한 작업은 Gemma가 아닌 Gemini 사용.
+
+## 설계/구현 시 주의사항
+
+- 새로운 기능을 제안하거나 구현할 때, 항상 **무료 티어 한도와 비용**을 먼저 고려한다.
+- 외부 API/서비스를 도입할 때는 해당 서비스가 **영구적으로 무료 또는 충분한 무료 티어**를 제공하는지 확인한다.
+- 할당량 소진 상황에서도 앱이 graceful 하게 동작하도록(부분 분석, 다음날 재시도 안내 등) 설계한다.
