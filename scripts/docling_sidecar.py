@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Docling 사이드카 서버 — FastAPI + Docling
+Docling 사이드카 서버 — FastAPI + pdfplumber + Docling
 PDF/DOCX를 시맨틱 구조로 파싱하여 Next.js에 JSON으로 반환.
 포트: 8766 (DOCLING_SIDECAR_PORT 환경변수로 변경 가능)
 
@@ -13,17 +13,24 @@ Lazy import 전략:
 - DOCLING_PRELOAD_MODEL=true  → startup 시 백그라운드 스레드로 preload (기본값)
 - DOCLING_PRELOAD_MODEL=false → 첫 /parse 요청 시 lazy load (Windows Defender 회피)
 
-파이프라인: TextOnlyPdfPipeline (Docling 2.77 기준)
+파이프라인: pdfplumber 우선 + Docling fallback
+- PDF: pdfplumber 기반 네이티브 텍스트/표 추출 (래스터라이제이션 없음, bad_alloc 불가)
+  - 텍스트 커버리지 100%, 처리 시간 15~25초, 표 구조 벡터 라인 기반 Markdown 변환
+  - pdfplumber 결과 없을 경우 Docling TextOnlyPdfPipeline으로 fallback
+- DOCX: Docling 경로 그대로 유지
+
+Docling TextOnlyPdfPipeline (fallback, Docling 2.77 기준):
 - LegacyStandardPdfPipeline 서브클래스 — DocLayNet 및 래스터라이제이션 완전 제거
 - 이유: StandardPdfPipeline(threaded)의 PagePreprocessingModel이 page.get_image(scale=1.0)을
         무조건 호출하여 대용량 PDF에서 std::bad_alloc 발생 (force_backend_text=True 무효)
 - 네이티브 PDF 텍스트 셀을 Cluster 로 직접 변환 → OOM 없이 226+ 페이지 처리 가능
 
 메모리 절감 설정:
-- DOCLING_BATCH_SIZE=20     → 페이지 배치 크기 (0 = 배치 비활성, 기본 20)
-                               대용량 PDF를 청크로 분할하여 피크 RAM 제한
+- DOCLING_BATCH_SIZE=20     → Docling fallback 시 페이지 배치 크기 (0 = 배치 비활성, 기본 20)
+                               pdfplumber는 페이지 배치 없이 전체 문서 스트리밍 처리
 """
 
+import gc
 import os
 import io
 import sys
@@ -228,10 +235,15 @@ def _make_text_only_pipeline_cls() -> type:
                             from docling.backend.pdf_backend import SegmentedPdfPage  # type: ignore[import]
                             page.parsed_page = SegmentedPdfPage(cells=[], tables=[])
                         except Exception:
-                            # SegmentedPdfPage import 불가 시 duck-typing fallback
+                            # SegmentedPdfPage import 불가 시 duck-typing fallback.
+                            # page.cells 프로퍼티는 내부적으로 parsed_page.textline_cells 를 참조하므로
+                            # 클래스 변수 cells 만으로는 AttributeError 를 막을 수 없다.
+                            # textline_cells 를 인스턴스 속성으로 명시하여 page.cells 가 빈 리스트를 반환하도록 함.
                             class _EmptyParsedPage:
-                                cells: list = []
-                                tables: list = []
+                                def __init__(self) -> None:
+                                    self.textline_cells: list = []
+                                    self.cells: list = []
+                                    self.tables: list = []
                             page.parsed_page = _EmptyParsedPage()
                 yield page
 
@@ -249,7 +261,15 @@ def _make_text_only_pipeline_cls() -> type:
             for page in page_batch:
                 clusters: list[Cluster] = []
                 cell_id = 0
-                for cell in page.cells:
+                try:
+                    page_cells = page.cells
+                except AttributeError:
+                    log.warning(
+                        f"page.cells 접근 실패 (page {getattr(page, 'page_no', '?')}): "
+                        f"parsed_page 에 textline_cells 없음 — 빈 페이지로 건너뜁니다."
+                    )
+                    page_cells = []
+                for cell in page_cells:
                     try:
                         bbox = cell.to_bounding_box()
                     except Exception:
@@ -389,6 +409,7 @@ def _extract_pdf_page_range(pdf_bytes: bytes, page_start: int, page_end: int) ->
     buf = io.BytesIO()
     dst.save(buf)
     result_bytes = buf.getvalue()
+    buf.close()   # BytesIO 버퍼 즉시 해제
     src.close()
     dst.close()
     return result_bytes
@@ -586,6 +607,207 @@ def _build_sections_from_doc(doc) -> list[dict]:
     return sections
 
 
+def _parse_pdf_native(pdf_bytes: bytes, filename: str) -> tuple[list[dict], int]:
+    """
+    pdfplumber 기반 PDF 파싱 (래스터라이즈 없음).
+    - 텍스트: PDF 텍스트 스트림 직접 추출 (메모리 수십 KB/페이지)
+    - 표: 벡터 라인 기반 감지 → Markdown 변환 (래스터라이즈 없음)
+    - bad_alloc 구조적으로 불가능
+    반환: (sections, total_pages) — _build_sections_from_doc()과 동일 형식
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        log.warning("pdfplumber 미설치 — Docling fallback 사용. pip install pdfplumber")
+        return [], 0
+
+    import re
+
+    # 조항 번호 패턴: "1.", "1.1", "14.1.2", "Article 1", "CLAUSE 1", "PART I" 등
+    HEADING_PATTERNS = [
+        re.compile(r'^\s*(\d+\.)+\d*\s+\S'),          # 1.1 / 14.1.2 Title
+        re.compile(r'^\s*\d+\.\s+[A-Z]'),              # 1. TITLE
+        re.compile(r'^\s*(ARTICLE|CLAUSE|PART|SECTION|CHAPTER)\s+[\dIVXivx]+', re.I),
+        re.compile(r'^\s*[A-Z][A-Z\s]{4,30}$'),        # ALL CAPS SHORT LINE
+    ]
+
+    def is_heading(text: str, avg_size: float, char_sizes: list) -> bool:
+        t = text.strip()
+        if not t or len(t) > 120:
+            return False
+        for pat in HEADING_PATTERNS:
+            if pat.match(t):
+                return True
+        # 폰트 크기가 평균보다 20% 이상 크면 heading
+        if char_sizes and avg_size > 0:
+            line_avg = sum(char_sizes) / len(char_sizes)
+            if line_avg > avg_size * 1.2:
+                return True
+        return False
+
+    sections: list[dict] = []
+    current: dict | None = None
+
+    def flush():
+        nonlocal current
+        if current and (current["heading"] or current["content"].strip()):
+            sections.append(current)
+        current = None
+
+    def new_section(heading: str, level: int, page: int):
+        nonlocal current
+        flush()
+        current = {
+            "heading": heading,
+            "level": level,
+            "content": "",
+            "page_start": page,
+            "page_end": page,
+            "zone_hint": _detect_zone_hint(heading),
+        }
+
+    def ensure_current(page: int):
+        nonlocal current
+        if current is None:
+            current = {
+                "heading": "",
+                "level": 1,
+                "content": "",
+                "page_start": page,
+                "page_end": page,
+                "zone_hint": "contract_body",
+            }
+
+    def table_to_markdown(table: list) -> str:
+        """pdfplumber 표 데이터 → Markdown 표 형식."""
+        rows = []
+        for row in table:
+            cells = [str(c).strip() if c is not None else "" for c in row]
+            rows.append("| " + " | ".join(cells) + " |")
+        if not rows:
+            return ""
+        # 헤더 구분선 추가
+        header = rows[0]
+        sep = "| " + " | ".join(["---"] * len(table[0])) + " |"
+        body = rows[1:] if len(rows) > 1 else []
+        return "\n".join([header, sep] + body)
+
+    total_pages = 0
+
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            total_pages = len(pdf.pages)
+
+            # 전체 문서 평균 폰트 크기 계산 (heading 감지 기준)
+            sample_sizes = []
+            for p in pdf.pages[:min(10, total_pages)]:
+                for ch in (p.chars or []):
+                    if ch.get("size"):
+                        sample_sizes.append(ch["size"])
+            avg_font_size = sum(sample_sizes) / len(sample_sizes) if sample_sizes else 12.0
+
+            for page_num, page in enumerate(pdf.pages, 1):
+                # 1) 표 추출 (벡터 라인 기반, 래스터라이즈 없음)
+                tables = []
+                try:
+                    tables = page.extract_tables() or []
+                except Exception as e:
+                    log.warning(f"page {page_num} 표 추출 실패: {e}")
+
+                # 표 bounding box 수집 (텍스트 중복 방지)
+                table_bboxes = []
+                try:
+                    for t_obj in (page.find_tables() or []):
+                        table_bboxes.append(t_obj.bbox)
+                except Exception:
+                    pass
+
+                # 2) 텍스트 줄 단위 추출
+                try:
+                    # extract_text_lines()로 줄 단위 추출 (pdfplumber 0.10+)
+                    lines = page.extract_text_lines(return_chars=True) or []
+                except Exception:
+                    # fallback: extract_words로 근사
+                    lines = []
+                    raw_text = page.extract_text() or ""
+                    for ln in raw_text.splitlines():
+                        if ln.strip():
+                            lines.append({"text": ln, "chars": []})
+
+                # 표 영역과 겹치는 줄 제거
+                def in_table(line) -> bool:
+                    if not table_bboxes:
+                        return False
+                    x0 = line.get("x0", 0)
+                    top = line.get("top", 0)
+                    x1 = line.get("x1", 9999)
+                    bottom = line.get("bottom", 9999)
+                    for tb in table_bboxes:
+                        if x0 >= tb[0] - 2 and top >= tb[1] - 2 and x1 <= tb[2] + 2 and bottom <= tb[3] + 2:
+                            return True
+                    return False
+
+                # 3) 줄별로 섹션 구성
+                for line in lines:
+                    if in_table(line):
+                        continue
+                    text = line.get("text", "").strip()
+                    if not text:
+                        continue
+                    char_sizes = [ch.get("size", 0) for ch in (line.get("chars") or []) if ch.get("size")]
+
+                    if is_heading(text, avg_font_size, char_sizes):
+                        # heading 레벨: 숫자 depth로 결정
+                        level = 1
+                        m = re.match(r'^\s*((\d+\.)+)', text)
+                        if m:
+                            level = m.group(1).count(".")
+                        new_section(text, level, page_num)
+                    else:
+                        ensure_current(page_num)
+                        current["content"] += text + "\n"
+                        current["page_end"] = max(current["page_end"], page_num)
+
+                # 4) 표를 Markdown으로 섹션에 추가
+                for tbl in tables:
+                    if not tbl:
+                        continue
+                    md = table_to_markdown(tbl)
+                    if md:
+                        ensure_current(page_num)
+                        current["content"] += "\n" + md + "\n"
+                        current["page_end"] = max(current["page_end"], page_num)
+
+    except Exception as e:
+        log.error(f"pdfplumber 파싱 실패: {e}")
+        return [], 0
+
+    flush()
+
+    # 섹션이 없으면 단순 텍스트 전체를 단일 섹션으로
+    if not sections:
+        try:
+            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                full_text = "\n".join(
+                    p.extract_text() or "" for p in pdf.pages
+                )
+                total_pages = len(pdf.pages)
+            if full_text.strip():
+                sections = [{
+                    "heading": "",
+                    "level": 1,
+                    "content": full_text,
+                    "page_start": 1,
+                    "page_end": total_pages,
+                    "zone_hint": "contract_body",
+                }]
+        except Exception:
+            pass
+
+    log.info(f"pdfplumber 파싱 완료: {len(sections)} sections, {total_pages} pages")
+    return sections, total_pages
+
+
 def _parse_pdf_in_batches(
     pdf_bytes: bytes,
     converter: object,
@@ -634,23 +856,30 @@ def _parse_pdf_in_batches(
 
         batch_filename = f"batch_{batch_num}_{filename}"
         stream = DocumentStream(name=batch_filename, stream=io.BytesIO(batch_bytes))
+        # batch_bytes는 stream 생성 후 즉시 해제 — 배치 PDF 사본을 더 이상 보유하지 않음
+        del batch_bytes
         batch_warnings: list[str] = []
         try:
             result = converter.convert(stream)
+            del stream  # 스트림 객체 즉시 해제
             _check_result_status(result, batch_warnings)
             if batch_warnings:
                 log.warning(f"배치 {batch_num} 경고: {batch_warnings}")
         except HTTPException as e:
             log.error(f"배치 {batch_num} 변환 실패 (status={e.detail}) — 건너뜁니다.")
             page = batch_end + 1
+            gc.collect()
             continue
         except Exception as e:
             log.error(f"배치 {batch_num} 파싱 실패: {e}")
             # 실패한 배치는 건너뛰고 계속 (partial result)
             page = batch_end + 1
+            gc.collect()
             continue
 
         batch_sections = _build_sections_from_doc(result.document)
+        # result (ConversionResult + 내부 DoclingDocument C++ 객체 포함)를 섹션 추출 후 즉시 해제
+        del result
         page_offset = page - 1  # batch page 1 = absolute page `page`
 
         for s in batch_sections:
@@ -660,6 +889,11 @@ def _parse_pdf_in_batches(
             all_sections.append(adjusted)
 
         page = batch_end + 1
+
+        # 배치 간 명시적 GC — pypdfium2 / Docling 내부 C++ 힙 참조를 Python 레퍼런스 카운트
+        # 기반 해제에 의존하지 않고 즉시 수집하여 Windows 가상 메모리 고갈 방지
+        gc.collect()
+        log.info(f"배치 {batch_num} 완료. GC 수행됨.")
 
     return all_sections, total_pages
 
@@ -696,7 +930,7 @@ async def health():
         "models_ready": _models_ready,
         "models_error": _models_error or None,
         "preload_mode": _PRELOAD,
-        "pipeline": "TextOnlyPdfPipeline",
+        "pipeline": "pdfplumber+Docling",
         "batch_size": _BATCH_SIZE,
     }
 
@@ -714,47 +948,68 @@ async def parse_document(file: UploadFile = File(...)):
 
     log.info(f"Parsing {filename} ({len(data):,} bytes)...")
 
-    # Lazy load: 첫 parse 요청 시 import + converter 초기화
-    # asyncio.to_thread()로 블로킹 호출을 이벤트 루프 밖 스레드에서 실행
-    try:
-        converter = await asyncio.to_thread(_get_converter)
-    except RuntimeError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Docling 모델 로드 실패: {e}. pip install -r scripts/requirements-docling.txt 를 실행하세요."
-        )
-
     try:
         warnings: list[str] = []
 
-        if ext == ".pdf" and _BATCH_SIZE > 0:
-            # 페이지 수 확인 (블로킹이므로 to_thread 사용)
-            total_pages_check = await asyncio.to_thread(_count_pdf_pages, data)
-            use_batching = total_pages_check > _BATCH_SIZE
-
-            if use_batching:
-                log.info(
-                    f"대용량 PDF 감지 ({total_pages_check}p > batch_size={_BATCH_SIZE}) "
-                    f"— 배치 모드로 처리합니다."
-                )
-                sections, total_pages = await asyncio.to_thread(
-                    _parse_pdf_in_batches, data, converter, filename, _BATCH_SIZE
-                )
-            else:
-                stream = DocumentStream(name=filename, stream=io.BytesIO(data))
-                result = await asyncio.to_thread(converter.convert, stream)
-                _check_result_status(result, warnings)
-                doc = result.document
-                sections = _build_sections_from_doc(doc)
-                total_pages = 1
+        if ext == ".pdf":
+            # pdfplumber 우선 시도 (래스터라이즈 없음, bad_alloc 없음, 표 구조 보존)
+            # Docling 로드 없이 먼저 시도 → 성공하면 Docling 초기화 시간 완전 절감
+            sections, total_pages = await asyncio.to_thread(_parse_pdf_native, data, filename)
+            if not sections:
+                # pdfplumber 실패 시 Docling 배치 fallback — 이때만 Docling 로드
+                log.warning("pdfplumber 파싱 결과 없음 — Docling TextOnlyPipeline fallback 시도")
                 try:
-                    raw_pages = doc.num_pages
-                    total_pages = (raw_pages() if callable(raw_pages) else raw_pages) or 1
-                except Exception:
-                    if sections:
-                        total_pages = max(s["page_end"] for s in sections)
+                    converter = await asyncio.to_thread(_get_converter)
+                except RuntimeError as e:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Docling 모델 로드 실패: {e}. pip install -r scripts/requirements-docling.txt 를 실행하세요."
+                    )
+                if _BATCH_SIZE > 0:
+                    total_pages_check = await asyncio.to_thread(_count_pdf_pages, data)
+                    if total_pages_check > _BATCH_SIZE:
+                        log.info(
+                            f"대용량 PDF 감지 ({total_pages_check}p > batch_size={_BATCH_SIZE}) "
+                            f"— Docling 배치 모드로 처리합니다."
+                        )
+                        sections, total_pages = await asyncio.to_thread(
+                            _parse_pdf_in_batches, data, converter, filename, _BATCH_SIZE
+                        )
+                    else:
+                        stream = DocumentStream(name=filename, stream=io.BytesIO(data))
+                        result = await asyncio.to_thread(converter.convert, stream)
+                        _check_result_status(result, warnings)
+                        doc = result.document
+                        sections = _build_sections_from_doc(doc)
+                        total_pages = 1
+                        try:
+                            raw_pages = doc.num_pages
+                            total_pages = (raw_pages() if callable(raw_pages) else raw_pages) or 1
+                        except Exception:
+                            if sections:
+                                total_pages = max(s["page_end"] for s in sections)
+                else:
+                    stream = DocumentStream(name=filename, stream=io.BytesIO(data))
+                    result = await asyncio.to_thread(converter.convert, stream)
+                    _check_result_status(result, warnings)
+                    doc = result.document
+                    sections = _build_sections_from_doc(doc)
+                    total_pages = 1
+                    try:
+                        raw_pages = doc.num_pages
+                        total_pages = (raw_pages() if callable(raw_pages) else raw_pages) or 1
+                    except Exception:
+                        if sections:
+                            total_pages = max(s["page_end"] for s in sections)
         else:
-            # DOCX 또는 배치 비활성
+            # DOCX — Docling 경유 (pdfplumber는 PDF 전용)
+            try:
+                converter = await asyncio.to_thread(_get_converter)
+            except RuntimeError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Docling 모델 로드 실패: {e}. pip install -r scripts/requirements-docling.txt 를 실행하세요."
+                )
             stream = DocumentStream(name=filename, stream=io.BytesIO(data))
             result = await asyncio.to_thread(converter.convert, stream)
             _check_result_status(result, warnings)

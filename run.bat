@@ -21,12 +21,13 @@ if errorlevel 1 (
 )
 
 REM Optional firewall rule for Node.
-netsh advfirewall firewall show rule name="Node.js" >nul 2>&1
-if errorlevel 1 goto :firewall_add
-echo [Setup] Node firewall rule exists
-goto :firewall_done
+REM [OPT] netsh 대신 레지스트리 키로 규칙 존재 여부를 확인 — netsh 서비스 초기화 1~3초 절감
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\FirewallRules" /v "Node.js" >nul 2>&1
+if not errorlevel 1 (
+  echo [Setup] Node firewall rule exists
+  goto :firewall_done
+)
 
-:firewall_add
 echo/
 echo [Setup] Adding Node.js firewall rule...
 netsh advfirewall firewall add rule name="Node.js" dir=in action=allow program="C:\Program Files\nodejs\node.exe" enable=yes >nul 2>&1
@@ -98,12 +99,21 @@ if "%DOCKER_OK%"=="1" (
     )
   )
 
-  echo [Local] npx supabase start
-  call npx supabase start
-  if errorlevel 1 (
-    echo [Info] supabase start failed or already running.
+  REM [OPT] Supabase가 이미 실행 중이면 npx supabase start를 완전히 건너뜀.
+  REM  npx + CLI 초기화 + Docker 컨테이너 상태 확인 비용(30~120초) 절감.
+  REM  curl --max-time 3 으로 최대 3초 내 응답 없으면 미실행으로 판단.
+  echo [Local] Checking if Supabase is already running...
+  curl -s --max-time 3 http://127.0.0.1:54321/health >nul 2>&1
+  if not errorlevel 1 (
+    echo [Local] Supabase already running - skipping start
   ) else (
-    echo [Local] Supabase started
+    echo [Local] npx supabase start
+    call npx supabase start
+    if errorlevel 1 (
+      echo [Info] supabase start failed or already running.
+    ) else (
+      echo [Local] Supabase started
+    )
   )
   echo/
 ) else (
@@ -230,7 +240,13 @@ exit /b 1
 echo/
 
 REM ── 포트 3000 점유 프로세스 정리 ────────────────────────────────────────────
-powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Write-Host ('[Next] Killing process on port 3000 (PID: ' + $_.OwningProcess + ')'); Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
+REM [OPT] PowerShell 대신 순수 CMD(netstat + for + taskkill)로 처리.
+REM  PowerShell.exe 프로세스 초기화 hang(10~30초) 완전 제거.
+REM  netstat -ano 는 즉시 응답하며, findstr로 LISTENING 상태만 필터링.
+for /f "tokens=5" %%P in ('netstat -ano 2^>nul ^| findstr /C:" LISTENING" ^| findstr "\:3000 "') do (
+  echo [Next] Killing process on port 3000 (PID: %%P)
+  taskkill /PID %%P /F >nul 2>&1
+)
 
 echo [Next] Reached dev server start >> "%RUNLOG%"
 echo [Next] Starting dev server...
