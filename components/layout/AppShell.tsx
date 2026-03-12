@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { QuotaDisplayWrapper } from "../dashboard/QuotaDisplayWrapper";
 
 interface AppShellProps {
@@ -11,6 +11,16 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const [supabaseConfigured, setSupabaseConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/status")
+      .then((r) => r.json())
+      .then((data: { supabaseConfigured?: boolean }) => setSupabaseConfigured(data.supabaseConfigured ?? false))
+      .catch(() => setSupabaseConfigured(null));
+  }, [pathname]);
+
+  const showDemoBanner = supabaseConfigured === false;
 
   return (
     <div className="app-container">
@@ -55,13 +65,17 @@ export function AppShell({ children }: AppShellProps) {
       </aside>
 
       <main className="main-content">
+        {showDemoBanner && (
         <div className="demo-banner">
           <p>
-            현재 Supabase 및 Docling이 설정되지 않은 환경에서는{" "}
+            Supabase가 설정되지 않았습니다.{" "}
             <strong>데모 모드</strong>로 동작합니다. 업로드/분석 결과가
-            새로고침 후 유지되지 않을 수 있습니다.
+            새로고침 후 유지되지 않을 수 있습니다.{" "}
+            <code className="rounded bg-bg-elevated px-1 py-0.5 text-[11px]">NEXT_PUBLIC_SUPABASE_URL</code>과{" "}
+            <code className="rounded bg-bg-elevated px-1 py-0.5 text-[11px]">SUPABASE_SERVICE_ROLE_KEY</code>를 설정해 주세요.
           </p>
         </div>
+        )}
         {children}
       </main>
     </div>

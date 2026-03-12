@@ -6,11 +6,11 @@
 |------|------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 사용 시 | Supabase 프로젝트 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase 사용 시 | Service Role Key (서버 전용, RLS 우회) |
-| `GEMINI_API_KEY` | 조항 분석 시 | Gemini API 키. 없으면 분석은 스텁 반환 |
-| `DOCLING_SERVICE_URL` | Docling 사용 시 | Docling 서비스 URL (예: http://localhost:8080). POST /parse 로 파일 전송, JSON { pages, sectionHeaders } 응답 가정 |
+| `GEMINI_API_KEY` | 조항 분석·PDF 파싱 시 | Gemini API 키. 없으면 분석·PDF 파싱 불가 |
 
 - Supabase 미설정 시: 계약·구역·조항·분석 DB 저장/조회가 되지 않으며, API가 503 또는 빈 데이터를 반환합니다.
-- `GEMINI_API_KEY` 없음: 분석 실행 시 빈 요약/권고/FIDIC 비교가 저장됩니다.
+- Supabase Cloud 연결 정보는 **설정(⚙️) 페이지**에서 URL과 Service Role Key를 입력해 저장할 수 있으며, 값은 암호화되어 로컬 파일(`data/supabase-config.enc`)에 보관됩니다.
+- `GEMINI_API_KEY` 없음: PDF 파싱 및 분석 실행이 불가합니다.
 
 ## Supabase 마이그레이션
 
@@ -24,15 +24,15 @@
    `supabase/migrations/002_rls_policies.sql` 내용을 실행합니다.  
    (4테이블 RLS 활성화 및 정책 추가. Service Role 사용 API는 RLS를 우회합니다.)
 
-## Fallback 텍스트 추출 (PDF/DOCX)
+## Fallback 텍스트 추출 (DOCX)
 
-실제 문서에서 텍스트를 추출하려면 다음 패키지를 설치합니다.
+DOCX 파일은 mammoth으로 텍스트를 추출합니다. PDF는 Gemini API로 직접 파싱합니다.
 
 ```bash
-npm install pdf-parse mammoth
+npm install mammoth
 ```
 
-- 미설치 시: 전처리 결과가 빈 페이지로 나와 구역/조항이 생성되지 않을 수 있습니다.
+- mammoth 미설치 시: DOCX 업로드 시 전처리 결과가 빈 페이지로 나올 수 있습니다.
 
 ## Auth 연동 (선택)
 

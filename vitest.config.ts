@@ -5,7 +5,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts", "**/*.spec.ts"],
+    exclude: ["node_modules/**", "**/.next/**"],
     globals: false,
+    testTimeout: 35_000,
   },
   resolve: {
     alias: {

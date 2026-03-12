@@ -8,11 +8,11 @@ export const MODEL_ROUTES = {
   QUALITY_CHECK: "gemma-3-12b-it",
   TEXT_CLEANUP: "gemma-3-4b-it",
 
-  RISK_ANALYSIS: "gemini-3.1-flash-lite",
-  FIDIC_COMPARISON: "gemini-3.1-flash-lite",
+  RISK_ANALYSIS: "gemini-2.5-flash-lite",
+  FIDIC_COMPARISON: "gemini-2.5-flash-lite",
 
   CROSS_VALIDATION: "gemini-2.5-flash",
-  DEEP_ANALYSIS: "gemini-3-flash",
+  DEEP_ANALYSIS: "gemini-2.0-flash",
   FALLBACK_ANALYSIS: "gemini-2.5-flash-lite",
 
   EMBEDDING: "gemini-embedding-001",
@@ -21,10 +21,9 @@ export const MODEL_ROUTES = {
 export type TaskType = keyof typeof MODEL_ROUTES;
 
 const MODEL_ID_TO_KEY: Record<string, ModelKey> = {
-  "gemini-3.1-flash-lite": "flash31Lite",
-  "gemini-2.5-flash": "flash25",
   "gemini-2.5-flash-lite": "flash25Lite",
-  "gemini-3-flash": "flash3",
+  "gemini-2.5-flash": "flash25",
+  "gemini-2.0-flash": "flash3",
   "gemma-3-27b-it": "gemma27b",
   "gemma-3-12b-it": "gemma12b",
   "gemma-3-4b-it": "gemma4b",

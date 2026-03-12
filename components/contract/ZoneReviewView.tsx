@@ -63,7 +63,7 @@ export function ZoneReviewView({
         <div>
           <h1 className="page-title">{contractName}</h1>
           <p className="page-subtitle">
-            문서 구역 검토 · 분석 대상 구역: {analysisTargetCount}건
+            Gemini PDF 분석 결과 · 분석 대상 구역: {analysisTargetCount}건
             {totalPageInfo && ` · ${totalPageInfo}`}
           </p>
         </div>

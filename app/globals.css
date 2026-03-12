@@ -49,6 +49,7 @@ nextjs-portal {
   height: 0;
   overflow: visible;
   z-index: 2147483647;
+  pointer-events: none;
 }
 
 body {

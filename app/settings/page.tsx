@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { GeminiKeySetup } from "../../components/dashboard/GeminiKeySetup";
+import { SupabaseConfigSetup } from "../../components/dashboard/SupabaseConfigSetup";
 
 interface StatusRes {
   supabaseConfigured: boolean;
   supabaseDetail: string;
-  doclingConfigured: boolean;
-  doclingDetail: string;
   geminiConfigured: boolean;
   allOk: boolean;
 }
@@ -86,9 +85,8 @@ export default function SettingsPage() {
   }
 
   const supabaseOk = status?.supabaseConfigured ?? false;
-  const doclingOk = status?.doclingConfigured ?? false;
   const geminiOk = status?.geminiConfigured ?? false;
-  const anyServiceDown = !supabaseOk || !doclingOk;
+  const anyServiceDown = !supabaseOk || !geminiOk;
 
   return (
     <div className="page">
@@ -99,20 +97,13 @@ export default function SettingsPage() {
         </p>
       </header>
       <div className="page-body" style={{ maxWidth: 800 }}>
-        {/* Status Summary — 순서: Supabase, Docling, Gemini (샘플 (1) 그대로) */}
+        {/* Status Summary — Supabase, Gemini (PDF 파싱은 Gemini 내장) */}
         <div className="env-summary">
           <div className="env-item">
             <span className={`dot ${supabaseOk ? "dot-ok" : "dot-fail"}`} />
             <strong>Supabase</strong>
             <span style={{ color: supabaseOk ? "var(--accent-green)" : "var(--accent-red)", fontSize: 12 }}>
               {supabaseOk ? "로컬 실행 중" : "미설정"}
-            </span>
-          </div>
-          <div className="env-item">
-            <span className={`dot ${doclingOk ? "dot-ok" : "dot-fail"}`} />
-            <strong>Docling</strong>
-            <span style={{ color: doclingOk ? "var(--accent-green)" : "var(--accent-red)", fontSize: 12 }}>
-              {doclingOk ? "로컬 실행 중" : status?.doclingDetail ?? "미설정"}
             </span>
           </div>
           <div className="env-item">
@@ -128,6 +119,30 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+
+        {/* ===== Supabase Cloud 연결 (UI에서 URL·Service Role Key 입력 저장) ===== */}
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">
+                <span style={{ fontSize: 20 }}>🗄️</span> Supabase Cloud 연결
+              </div>
+              <div className="section-desc">
+                .env 없이 설정에서 URL과 Service Role Key를 입력해 저장할 수 있습니다
+              </div>
+            </div>
+            <span className={`status-badge ${supabaseOk ? "status-ok" : "status-fail"}`}>
+              {supabaseOk ? "✓ 연결됨" : "미연결"}
+            </span>
+          </div>
+          <div className="card">
+            <div className="card-body">
+              <SupabaseConfigSetup onSaved={load} />
+            </div>
+          </div>
+        </div>
+
+        <div className="divider" />
 
         {/* ===== GEMINI API — 유일한 사용자 입력 (SETUP-GUIDE Step 4) ===== */}
         <div className="section">
@@ -203,7 +218,7 @@ export default function SettingsPage() {
             <div className="card-body">
               <div className="sys-grid">
                 <div className="sys-item">
-                  <div className="sys-label">Supabase (로컬 DB)</div>
+                  <div className="sys-label">Supabase DB</div>
                   <div className="sys-val">
                     <span className={`dot ${supabaseOk ? "dot-ok" : "dot-fail"}`} />
                     <span style={{ color: supabaseOk ? "var(--accent-green)" : "var(--accent-red)" }}>
@@ -214,26 +229,15 @@ export default function SettingsPage() {
                   <div className="sys-detail">{supabaseOk ? "7 tables · pgvector ✓" : "npx supabase start"}</div>
                 </div>
                 <div className="sys-item">
-                  <div className="sys-label">Docling (문서 파싱)</div>
+                  <div className="sys-label">Gemini PDF 파싱 + 분석</div>
                   <div className="sys-val">
-                    <span className={`dot ${doclingOk ? "dot-ok" : "dot-fail"}`} />
-                    <span style={{ color: doclingOk ? "var(--accent-green)" : "var(--accent-red)" }}>
-                      {doclingOk ? "실행 중" : "미설정"}
+                    <span className={`dot ${geminiOk ? "dot-ok" : "dot-fail"}`} />
+                    <span style={{ color: geminiOk ? "var(--accent-green)" : "var(--accent-red)" }}>
+                      {geminiOk ? "연결됨" : "Gemini 키 필요"}
                     </span>
                   </div>
-                  <div className="sys-detail">localhost:5001</div>
-                  <div className="sys-detail">{doclingOk ? "TableFormer ✓" : "docker start docling"}</div>
-                </div>
-                <div className="sys-item">
-                  <div className="sys-label">Supabase Studio</div>
-                  <div className="sys-val">
-                    <span className={`dot ${supabaseOk ? "dot-ok" : "dot-fail"}`} />
-                    <span style={{ color: supabaseOk ? "var(--accent-green)" : "var(--accent-red)" }}>
-                      {supabaseOk ? "접속 가능" : "미실행"}
-                    </span>
-                  </div>
-                  <div className="sys-detail">localhost:54323</div>
-                  <div className="sys-detail">DB 관리 대시보드</div>
+                  <div className="sys-detail">네이티브 비전 · 표/레이아웃 인식 ✓</div>
+                  <div className="sys-detail">별도 도구 설치 불필요</div>
                 </div>
               </div>
 
@@ -252,18 +256,16 @@ export default function SettingsPage() {
                       overflowX: "auto",
                     }}
                   >
-                    {`npx supabase start     # Supabase 로컬 실행
-docker start docling   # Docling 실행`}
+                    {`npx supabase start     # Supabase 로컬 실행`}
                   </pre>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    최초 1회: <code>npx supabase init</code> 후 <code>npx supabase start</code>, Docling은 <code>docker run -d --name docling -p 5001:5001 --restart unless-stopped quay.io/docling-project/docling-serve</code>
+                    최초 1회: <code>npx supabase init</code> 후 <code>npx supabase start</code>. PDF 파싱은 Gemini API로 처리됩니다.
                   </span>
                 </div>
               )}
 
               <div className="info-box info-blue" style={{ marginTop: 16 }}>
-                💡 <code>supabase start</code>와 Docling Docker는 <code>--restart unless-stopped</code> 설정으로
-                Docker Desktop 시작 시 자동으로 켜집니다. 별도 조작이 필요 없습니다.
+                💡 Gemini API 하나로 PDF 파싱 + AI 분석을 모두 처리합니다. 별도 도구 설치가 필요 없습니다.
               </div>
             </div>
           </div>
@@ -297,7 +299,7 @@ docker start docling   # Docling 실행`}
                     <tbody>
                       <tr style={{ borderBottom: "1px solid var(--border)" }}>
                         <td style={{ padding: "10px 12px", fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "var(--accent-blue)" }}>3.1 Flash Lite</td>
-                        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>★ 핵심 분석</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>★ PDF 파싱 + 분석</td>
                         <td style={{ padding: "10px 12px", textAlign: "center", fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>500</td>
                         <td style={{ padding: "10px 12px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -390,7 +392,7 @@ docker start docling   # Docling 실행`}
         <div className="divider" />
 
         <div className="info-box info-green">
-          ✓ Gemini API Key는 로컬 Supabase DB에 저장됩니다. 로컬 서비스(Supabase + Docling)는 Docker에서 자동 실행되므로,{" "}
+          ✓ Gemini API Key는 로컬 Supabase DB에 저장됩니다. Gemini API 하나로 PDF 파싱 + AI 분석을 모두 처리합니다. 별도 도구 설치가 필요 없습니다.{" "}
           <strong>이 페이지에서 할 일은 API Key 입력뿐</strong>입니다. 한 번 저장하면 끝.
         </div>
       </div>

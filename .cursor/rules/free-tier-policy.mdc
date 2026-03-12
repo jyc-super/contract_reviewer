@@ -20,7 +20,7 @@ alwaysApply: true
 ## Gemini/Gemma 사용 원칙
 
 - 모든 모델 호출 전에 `canCall()` + `waitForRateLimit()`으로 할당량/RPM을 확인한다.
-- **핵심 분석(리스크, FIDIC 비교)**: gemini-3.1-flash-lite (RPD 500) 사용. 이것이 하루 처리량의 병목.
+- **핵심 분석(리스크, FIDIC 비교)**: gemini-2.0-flash (RPD 500) 사용. 이것이 하루 처리량의 병목.
 - **교차 검증**: Flash 계열(2.5 Flash, 2.5 Flash Lite, 3 Flash) — RPD 20씩. HIGH 리스크만.
 - **전처리(구역 분류, 조항 분리, 품질 검증)**: Gemma 모델 사용 (RPD 14,400, 사실상 무제한).
 - **임베딩**: gemini-embedding-001 (RPD 1,000).

@@ -7,6 +7,11 @@ create table if not exists public.app_settings (
   updated_at timestamptz not null default now()
 );
 
+-- Advisor: table is in public schema, so RLS must be enabled.
+-- No client-side access policy is added here on purpose.
+-- Server-side service_role access bypasses RLS.
+alter table public.app_settings enable row level security;
+
 comment on table public.app_settings is '앱 설정 키-값 (암호화된 값만 저장)';
 comment on column public.app_settings.key is '설정 키 (예: gemini_api_key)';
 comment on column public.app_settings.value_encrypted is '암호화된 값 (IV:authTag:ciphertext hex)';

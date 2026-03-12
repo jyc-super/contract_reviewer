@@ -1,25 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { getSupabaseConfig } from "../supabase-config-store";
 
 export function createAdminSupabaseClient() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase Admin 클라이언트 환경변수가 설정되어 있지 않습니다.");
+  const config = getSupabaseConfig();
+  if (!config) {
+    throw new Error("Supabase Admin 클라이언트 환경변수가 설정되어 있지 않습니다. 설정 페이지에서 URL과 Service Role Key를 입력해 주세요.");
   }
 
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient(config.url, config.serviceRoleKey, {
     auth: {
       persistSession: false,
     },
   });
 }
 
-/** 환경변수가 있으면 Admin 클라이언트 반환, 없으면 null (DB 저장 생략) */
+/** 환경변수 또는 UI 저장값이 있으면 Admin 클라이언트 반환, 없으면 null (DB 저장 생략) */
 export function getAdminSupabaseClientIfAvailable() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  const config = getSupabaseConfig();
+  if (!config) return null;
+  return createClient(config.url, config.serviceRoleKey, {
     auth: { persistSession: false },
   });
 }
-

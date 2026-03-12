@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabaseClientIfAvailable } from "../../../../../lib/supabase/admin";
-import { getUserIdFromRequest, PLACEHOLDER_USER_ID } from "../../../../../lib/auth/server";
+import { requireUserIdFromRequest } from "../../../../../lib/auth/server";
 import * as logger from "../../../../../lib/logger";
 
 interface Params {
@@ -14,7 +14,9 @@ interface ZonesBody {
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id: contractId } = await params;
-  const userId = (await getUserIdFromRequest(req)) ?? PLACEHOLDER_USER_ID;
+  const auth = await requireUserIdFromRequest(req);
+  if ("response" in auth) return auth.response;
+  const { userId } = auth;
   const supabase = getAdminSupabaseClientIfAvailable();
 
   if (!supabase) {

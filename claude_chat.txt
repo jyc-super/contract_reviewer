@@ -1,0 +1,109 @@
+================================================================
+CONTRACT RISK - DOCLING SIDECAR 진단 대화 기록
+날짜: 2026-03-10
+================================================================
+
+## 작업 목표
+Docling sidecar (scripts\start_sidecar.bat) 실행 시
+아무 반응이 없는 문제를 진단하고 수정.
+
+================================================================
+## 수행한 수정 사항
+================================================================
+
+### Fix 1: scripts/docling_sidecar.py
+- HF_HUB_OFFLINE 조건부 적용
+  - 변경 전: os.environ.setdefault("HF_HUB_OFFLINE", "1")  # 항상 오프라인
+  - 변경 후: HF 캐시 존재 여부 확인 후 조건부 적용
+    → 캐시 있으면: HF_HUB_OFFLINE=1 (오프라인)
+    → 캐시 없으면: 환경변수 제거 (다운로드 허용)
+
+### Fix 2: .env.example
+- DOCLING_SIDECAR_URL 포트 수정
+  - 변경 전: http://127.0.0.1:8765
+  - 변경 후: http://127.0.0.1:8766
+  - 이유: start_sidecar.bat, docker-compose.docling.yml 모두 8766 사용
+
+### Fix 3: scripts/start_sidecar.bat
+1. PowerShell 포트 체크 구문 수정
+   - 변경 전: ('powershell ... "(Get-NetTCPConnection ...')
+   - 변경 후: 바깥 괄호 제거 → cmd가 ( 를 블록으로 파싱하던 문제 해결
+
+2. huggingface-cli → python -c "snapshot_download(...)" 변경
+   - 한글 텍스트 제거 (CP949 bat 파싱 문제 방지)
+   - huggingface-cli 실행 파일 의존성 제거
+
+3. pip bootstrap 추가
+   - scripts/.venv에 pip.exe 없을 경우 ensurepip 자동 실행
+
+4. venv 경로 수정 (핵심 수정)
+   - 변경 전: set "VENV_DIR=%~dp0..\scripts\.venv"  ← 비어있는 venv
+   - 변경 후: set "VENV_DIR=%~dp0..\.venv"          ← 실제 패키지 설치된 venv
+
+================================================================
+## 진단 결과
+================================================================
+
+### 확인된 환경
+- Python: 3.12.10
+- 실제 venv 위치: D:\coding\contract risk\.venv  (루트)
+  - docling 2.77.0, fastapi 0.135.1, uvicorn 0.41.0 설치됨
+- 잘못된 venv 위치: D:\coding\contract risk\scripts\.venv
+  - python.exe, pythonw.exe 만 존재 (pip 없음)
+  - bat이 이 경로를 참조하여 pip install 실패 → pause 명령 대기
+
+### Import 테스트 결과
+- fastapi:                       ✅ 1.3초
+- numpy, PIL:                    ✅ 0.5초
+- docling_core.types:            ✅ 3.6초
+- abstract_backend:              ✅ 3.7초
+- asr_model_specs:               ⚠️ 31초 (느림)
+- pipeline_options:              ❌ 10분 이상 → 무한 hang
+
+### 최종 원인 (미해결)
+  pipeline_options.py
+    → pipeline_options_asr_model.py
+    → pipeline_options_vlm_model.py
+         line 6: from transformers import StoppingCriteria  ← hang 발생
+
+  [근본 원인]
+  HuggingFace transformers 패키지를 모듈 레벨에서 import.
+  transformers import 시 PyTorch DLL 수백 개 로드.
+  Windows Defender 실시간 보호가 DLL 스캔 → 10분~수 시간 소요.
+  첫 실행 후 DLL 캐시 완료되면 이후에는 빠름.
+
+  Docling 2.x(최신)는 VLM/ASR 기능 추가로 import 자체가 무거워짐.
+
+================================================================
+## 미해결 문제 및 권장 조치
+================================================================
+
+### 권장 조치 (우선순위 순)
+
+[방법 A] Windows Defender 예외 추가 (즉시 효과)
+  Windows 보안 → 바이러스 및 위협 방지 → 제외 추가
+  → D:\coding\contract risk\.venv 폴더 전체 예외 등록
+  → 이후 import transformers 가 수십 초 내로 완료됨
+
+[방법 B] 첫 실행 후 기다리기
+  Windows Defender 스캔이 완료되면 자동으로 진행됨
+  30분~수 시간 소요될 수 있음
+
+[방법 C] Docker 사용
+  Docker 컨테이너는 Windows Defender DLL 스캔 영향 없음
+  docker-compose -f docker-compose.docling.yml up
+
+================================================================
+## 현재 파일 상태
+================================================================
+
+수정된 파일:
+  - scripts/docling_sidecar.py  (HF_HUB_OFFLINE 조건부)
+  - scripts/start_sidecar.bat   (venv 경로, 포트 체크, pip bootstrap)
+  - .env.example                (포트 8765 → 8766)
+
+포트 현황:
+  - 8765: 다른 프로세스가 사용 중 (PID 68560)
+  - 8766: 사용 안 함 (sidecar 대기 중)
+
+================================================================

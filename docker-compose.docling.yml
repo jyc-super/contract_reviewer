@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  docling:
+    build:
+      context: .
+      dockerfile: Dockerfile.docling
+    container_name: contract-risk-docling
+    image: contract-risk-docling:local
+    ports:
+      - "8766:8766"
+    volumes:
+      - docling-model-cache:/cache/hf
+    environment:
+      DOCLING_BIND_HOST: "0.0.0.0"
+      DOCLING_SIDECAR_PORT: "8766"
+      HF_HOME: "/cache/hf"
+      HF_HUB_OFFLINE: "0"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8766/health"]
+      interval: 5s
+      timeout: 4s
+      start_period: 120s
+      retries: 24
+
+volumes:
+  docling-model-cache:
+    name: docling-model-cache

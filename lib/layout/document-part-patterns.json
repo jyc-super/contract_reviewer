@@ -1,0 +1,103 @@
+{
+  "parts": [
+    {
+      "key": "contract_agreement",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?contract\\s+agreement\\b",
+        "^\\s*this\\s+contract\\s+agreement\\b"
+      ]
+    },
+    {
+      "key": "general_conditions",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?general\\s+conditions(?:\\s+of\\s+contract)?\\b",
+        "^\\s*gc\\b.*\\bgeneral\\s+conditions\\b",
+        "^\\s*book\\s*(?:ii|2)\\b.*\\bgeneral\\s+conditions\\b",
+        "^\\s*section\\s*[a-z]\\b.*\\bgeneral\\s+conditions\\b",
+        "^\\s*general\\s+provisions\\s*$"
+      ]
+    },
+    {
+      "key": "particular_conditions",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?particular\\s+conditions(?:\\s+of\\s+contract)?\\b",
+        "^\\s*special\\s+conditions(?:\\s+of\\s+contract)?\\b",
+        "^\\s*pc\\b.*\\bparticular\\s+conditions\\b",
+        "^\\s*book\\s*(?:iii|3)\\b.*\\bparticular\\s+conditions\\b",
+        "^\\s*section\\s*[b-z]\\b.*\\bparticular\\s+conditions\\b"
+      ]
+    },
+    {
+      "key": "conditions_of_contract",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?conditions\\s+of\\s+contract\\b",
+        "^\\s*(?:fidic\\s*)?conditions\\b"
+      ]
+    },
+    {
+      "key": "technical_specifications",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?(?:technical\\s+)?specifications?\\b",
+        "^\\s*employer'?s\\s+requirements\\b",
+        "^\\s*owner'?s\\s+requirements\\b"
+      ]
+    },
+    {
+      "key": "commercial_terms",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*commercial\\s+terms\\b",
+        "^\\s*price\\s+and\\s+payment\\b"
+      ]
+    },
+    {
+      "key": "appendices",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*schedules?\\b",
+        "^\\s*schedule\\s+[a-z0-9]+\\b",
+        "^\\s*appendi(?:x|ces)\\b",
+        "^\\s*exhibits?\\b",
+        "^\\s*annex(?:es)?\\b"
+      ]
+    },
+    {
+      "key": "definitions",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*(?:\\d+(?:\\.\\d+)*)\\s*definitions\\b",
+        "^\\s*definitions\\b"
+      ]
+    },
+    {
+      "key": "toc",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*table\\s+of\\s+contents\\b",
+        "^\\s*contents\\b",
+        "^\\s*index\\b"
+      ]
+    },
+    {
+      "key": "cover_page",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*cover\\s+(?:page|sheet)\\b",
+        "^\\s*title\\s+page\\b"
+      ]
+    },
+    {
+      "key": "drawing_list",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*(?:list\\s+of\\s+)?drawings?\\b",
+        "^\\s*drawing\\s+(?:register|schedule|list)\\b"
+      ]
+    }
+  ]
+}

@@ -18,7 +18,7 @@ PDF/DOCX 건설·EPC 계약서를 업로드하면 조항 단위로 파싱하고,
 ## 주요 기능
 
 - 계약서 업로드 (PDF/DOCX, 50MB 이하, magic bytes 검증)
-- 전처리 파이프라인: 검증 → 텍스트 추출(Docling 또는 pdf-parse/mammoth fallback) → 구역 분류 → 조항 분할 → 품질 검사
+- 전처리 파이프라인: 검증 → PDF는 Gemini API 직접 파싱, DOCX는 mammoth 텍스트 추출 → 구역 분류 → 조항 분할 → 품질 검사
 - 불확실 구역 사용자 확정 (include/exclude) 후 조항 파싱
 - 조항별 리스크 분석 + FIDIC 비교 (Gemini Flash 1회 호출, 쿼터 소진 시 일부 저장)
 - 대시보드(계약 목록·통계·쿼터), 계약 상세(조항 목록·분석 패널), 구역 검토 페이지
@@ -78,8 +78,7 @@ npm run dev
 
 - **환경 변수**: [docs/ENV_AND_MIGRATIONS.md](docs/ENV_AND_MIGRATIONS.md) 참고  
   - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`  
-  - Gemini: `GEMINI_API_KEY` (조항 분석용)  
-  - Docling(선택): `DOCLING_SERVICE_URL` (예: `http://localhost:8080`)
+  - Gemini: `GEMINI_API_KEY` (조항 분석·PDF 파싱)
 - **마이그레이션**: Supabase SQL Editor에서 `supabase/migrations/001_init_core_tables.sql` → `002_rls_policies.sql` 순서 실행
 
 ## 스펙

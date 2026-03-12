@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabaseClientIfAvailable } from "../../../../../lib/supabase/admin";
-import { getUserIdFromRequest, PLACEHOLDER_USER_ID } from "../../../../../lib/auth/server";
+import { requireUserIdFromRequest } from "../../../../../lib/auth/server";
 import { analyzeClauseForDb } from "../../../../../lib/analysis/risk-analyzer";
 import { GeminiKeyInvalidError } from "../../../../../lib/gemini-errors";
 import { clearStoredGeminiKey } from "../../../../../lib/gemini-key-store";
@@ -12,7 +12,9 @@ interface Params {
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id: contractId } = await params;
-  const userId = (await getUserIdFromRequest(req)) ?? PLACEHOLDER_USER_ID;
+  const auth = await requireUserIdFromRequest(req);
+  if ("response" in auth) return auth.response;
+  const { userId } = auth;
   const supabase = getAdminSupabaseClientIfAvailable();
 
   if (!supabase) {

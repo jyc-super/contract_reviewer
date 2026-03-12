@@ -1,0 +1,10 @@
+# Docling 사이드카 의존성
+# 설치: pip install -r scripts/requirements-docling.txt
+#
+# docling 최초 실행 시 DocLayNet 모델 (~500MB) 자동 다운로드
+# Python 3.10+ 필요
+
+docling>=2.0.0
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9

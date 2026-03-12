@@ -2,7 +2,7 @@
 
 > **사용자가 직접 입력할 것: Gemini API Key 1개뿐**
 >
-> 나머지(DB, 문서 파싱)는 Docker에서 자동 실행됩니다.
+> 나머지(DB)는 Docker에서 자동 실행됩니다. PDF 파싱은 Gemini API로 처리되므로 Docling/Docker가 필요 없습니다.
 > 총 소요 시간: 약 10분 · 비용: 0원 · 인터넷 가입/계정 생성: Gemini만
 
 ---
@@ -13,23 +13,22 @@
 ┌─────────────────────────────────────────┐
 │          ContractLens (Next.js)          │
 │             localhost:3000               │
-└──────┬─────────────┬───────────┬────────┘
-       │             │           │
-       ▼             ▼           ▼
-  ┌──────────┐ ┌──────────┐ ┌──────────┐
-  │ Supabase │ │ Docling  │ │ Gemini   │
-  │ (로컬DB) │ │ (파싱)   │ │ (AI분석) │
-  │ :54321   │ │ :5001    │ │ 클라우드  │
-  │ Docker   │ │ Docker   │ │ 무료API  │
-  └──────────┘ └──────────┘ └──────────┘
-     자동실행      자동실행     API Key 1개
+└──────┬─────────────────────┬───────────┘
+       │                      │
+       ▼                      ▼
+  ┌──────────┐          ┌──────────┐
+  │ Supabase │          │ Gemini   │
+  │ (로컬DB) │          │ (AI분석  │
+  │ :54321   │          │ +PDF파싱)│
+  │ Docker   │          │ 클라우드  │
+  └──────────┘          └──────────┘
+     자동실행             API Key 1개
 ```
 
 | 구성 요소 | 위치 | 사용자 조치 |
 |-----------|------|------------|
 | **Supabase** | 로컬 Docker (localhost:54321) | 없음 — 자동 실행 |
-| **Docling** | 로컬 Docker (localhost:5001) | 없음 — 자동 실행 |
-| **Gemini API** | Google 클라우드 | ★ API Key 입력 (1회) |
+| **Gemini API** | Google 클라우드 | ★ API Key 입력 (1회, 분석·PDF 파싱 모두 사용) |
 
 ---
 
@@ -42,8 +41,6 @@
 ---
 
 ## Step 1: Docker 서비스 일괄 실행 (5분)
-
-**한 번에 실행하려면**: 프로젝트 루트에서 **run.bat**을 더블클릭하면 Supabase·Docling 기동과 `.env.local` 자동 보강까지 수행됩니다. 아래는 수동 실행 시 참고용입니다.
 
 ### 1-1. Supabase 로컬 실행
 
@@ -74,26 +71,18 @@ Started supabase local development setup.
 service_role key: eyJhbGciOiJIUzI1NiIs...
 ```
 
-> 이 값들은 로컬 환경에서 항상 동일합니다. **run.bat**으로 실행하면 `.env.local`에 자동으로 채워지므로, 수동 복사는 필요 없습니다. `npm run dev`만 쓸 경우 아래 Step 3처럼 직접 `.env.local`을 작성하세요.
+> 이 값들은 로컬 환경에서 항상 동일합니다. `.env.local`에 자동으로 들어갑니다.
 
-### 1-2. Docling 실행
-
-```bash
-docker run -d --name docling -p 5001:5001 --restart unless-stopped quay.io/docling-project/docling-serve
-```
-
-첫 실행 시 이미지 + AI 모델 다운로드로 5~10분. 이후 즉시 시작.
-
-### 1-3. 자동 재시작 확인
+### 1-2. 자동 재시작 확인
 
 Docker Desktop 설정:
 - **Settings → General → "Start Docker Desktop when you sign in"** 체크
 
 이렇게 하면 컴퓨터 재부팅 후에도:
-- Docker Desktop 자동 시작 → Supabase + Docling 자동 시작
+- Docker Desktop 자동 시작 → Supabase 자동 시작
 - 별도 조작 필요 없음
 
-### 1-4. 실행 확인
+### 1-3. 실행 확인
 
 ```bash
 # 전체 Docker 컨테이너 상태 확인
@@ -101,8 +90,6 @@ docker ps
 
 # Supabase 상태 확인
 npx supabase status
-
-# Docling 확인 — 브라우저에서 http://localhost:5001
 
 # Supabase Studio — 브라우저에서 http://localhost:54323
 ```
@@ -140,9 +127,6 @@ NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
 
-# ─── Docling (로컬) ───
-DOCLING_SERVICE_URL=http://localhost:5001
-
 # ─── Gemini API (★ 이것만 직접 발급 필요) ───
 GEMINI_API_KEY=여기에_본인_키_입력
 ```
@@ -179,7 +163,7 @@ npm run dev
 
 ```
 ● Supabase    로컬 실행 중
-● Docling     로컬 실행 중
+● 문서 파싱  Gemini API (PDF/DOCX)
 ● Gemini API  연결됨
 ✓ 모든 서비스 정상
 ```
@@ -192,7 +176,7 @@ npm run dev
 
 ```
 Docker Desktop 시작 (자동 시작 설정 시 불필요)
-  → Supabase + Docling 자동 시작
+  → Supabase 자동 시작
   → npm run dev
   → http://localhost:3000 접속
   → 끝
@@ -212,7 +196,6 @@ Docker Desktop 시작 (자동 시작 설정 시 불필요)
 |------|------|
 | `docker ps`에 아무것도 안 보임 | Docker Desktop 실행 확인 |
 | Supabase 컨테이너 안 뜸 | `npx supabase start` 재실행 |
-| Docling 컨테이너 안 뜸 | `docker start docling` |
 | 포트 충돌 | `docker ps`로 충돌 확인 후 해당 컨테이너 정지 |
 
 ### Supabase 관련
@@ -230,29 +213,6 @@ Docker Desktop 시작 (자동 시작 설정 시 불필요)
 | 401 에러 | API 키 확인/재생성 |
 | 429 에러 | 할당량 소진, 17:00 KST 이후 리셋 |
 | 앱 설정 탭에서 저장 안 됨 | `.env.local`에 직접 입력 |
-
-### Docling 관련
-
-| 증상 | 해결 |
-|------|------|
-| 파싱 타임아웃 | `docker logs docling`으로 로그 확인 |
-| 모델 다운로드 중 멈춤 | 네트워크 확인, `docker restart docling` |
-
-### 빌드 관련
-
-| 증상 | 해결 |
-|------|------|
-| `Cannot find module for page: /_document` | App Router 전용 프로젝트에서 이전 빌드 캐시 충돌. `.next` 삭제 후 재빌드: `Remove-Item -Recurse -Force .next` (PowerShell) 또는 `rm -rf .next` (bash) 후 `npm run build` |
-
----
-
-## 배포 시 체크리스트
-
-프로덕션(production) 환경에 배포할 때 반드시 확인:
-
-1. **ENCRYPTION_KEY**: `.env`에 **32자 이상** 시크릿 설정. 미설정 시 앱 기동 시 에러로 종료됩니다.
-2. **Supabase**: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (및 필요 시 `NEXT_PUBLIC_SUPABASE_ANON_KEY`) 설정 후 `/api/settings/status` 호출로 연결 확인.
-3. **Docling** (선택): `DOCLING_SERVICE_URL` 설정 시 끝에 슬래시 없이 예) `http://localhost:5001`
 
 ---
 
@@ -274,8 +234,7 @@ Docker Desktop 시작 (자동 시작 설정 시 불필요)
 | 구성 요소 | 한도 | 의미 |
 |-----------|------|------|
 | Supabase 로컬 | 무제한 (내 PC 디스크) | 계약서 무제한 저장 |
-| Docling 로컬 | 무제한 (내 PC 성능) | 문서 파싱 무제한 |
-| Gemini 3.1 Flash Lite | 500회/일 | 계약서 ~6건/일 |
+| Gemini 3.1 Flash Lite | 500회/일 | PDF 파싱·분석 포함, 계약서 ~5건/일 |
 | Gemma 27B/12B | 14,400회/일 | 전처리 무제한급 |
 | Gemini Embedding | 1,000회/일 | 벡터 생성 충분 |
 

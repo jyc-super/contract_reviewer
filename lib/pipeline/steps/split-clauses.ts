@@ -1,23 +1,37 @@
+/**
+ * 조항 분리 — detectNumberingHint 기반 헤딩 감지 + Gemma 검증 제거.
+ * lpr/legal/numbering.py 로직으로 헤딩 패턴 강화. Gemma 호출 없음.
+ */
+
+import { detectNumberingHint } from "../../layout/numbering";
+
 export interface Clause {
   id: string;
   text: string;
   flags?: string[];
 }
 
-const headingRegexes = [
-  /^(Article|Section|Clause)\s+\d+/i,
-  /^\d+\.\d+[\.\d]*\s/,
-  /^제\s*\d+\s*조/,
-  /^[A-Z]\.\s/,
-  /^\d+\)\s/,
-  /^[가-힣]\.\s/,
-  /^Part\s+[IVX]+/i,
-];
+/** numbering.ts 기반 헤딩 판별 (ARTICLE/SECTION/decimal/한국어 조) */
+function isHeading(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
 
-const isHeading = (line: string) =>
-  headingRegexes.some((re) => re.test(line.trim()));
+  // numbering hint
+  const hint = detectNumberingHint(t);
+  if (hint?.isHeadingCandidate) return true;
 
-function regexSplitClauses(text: string): Clause[] {
+  // 명시적 키워드 (대소문자 무관)
+  if (/^(Article|Section|Clause|Part)\s+\d+/i.test(t)) return true;
+  if (/^Part\s+[IVX]+/i.test(t)) return true;
+
+  // 한국어
+  if (/^제\s*\d+\s*조/.test(t)) return true;
+  if (/^[가-힣]\.\s/.test(t)) return true;
+
+  return false;
+}
+
+export function regexSplitClauses(text: string): Clause[] {
   const lines = text.split(/\r?\n/);
   const clauses: Clause[] = [];
   let currentTitle: string | undefined;
@@ -66,51 +80,6 @@ function regexSplitClauses(text: string): Clause[] {
   return clauses;
 }
 
-async function gemmaVerifySplit(
-  clauses: Clause[]
-): Promise<{ verified: boolean; issues?: string }> {
-  try {
-    const { callGemmaJson } = await import("../../gemini");
-    const { canCall } = await import("../../quota-manager");
-
-    if (!(await canCall("gemma12b"))) return { verified: true };
-
-    const summary = clauses
-      .slice(0, 10)
-      .map((c, i) => `${i + 1}. ${c.text.slice(0, 40)}`)
-      .join("\n");
-
-    const result = await callGemmaJson<{
-      correct?: boolean;
-      issues?: string;
-    }>({
-      modelKey: "gemma12b",
-      prompt: `Verify clause split quality. ${clauses.length} clauses found. First 10 previews below. Reply JSON: {"correct":true/false,"issues":"...or null"}`,
-      inputText: summary,
-    });
-
-    return {
-      verified: result.correct !== false,
-      issues: result.issues || undefined,
-    };
-  } catch {
-    return { verified: true };
-  }
-}
-
 export async function splitClauses(text: string): Promise<Clause[]> {
-  const clauses = regexSplitClauses(text);
-
-  if (clauses.length >= 3 && clauses.length <= 500) {
-    const verification = await gemmaVerifySplit(clauses);
-    if (!verification.verified) {
-      for (const clause of clauses) {
-        clause.flags = [...(clause.flags ?? []), "gemma_review_suggested"];
-      }
-    }
-  }
-
-  return clauses;
+  return regexSplitClauses(text);
 }
-
-export { regexSplitClauses };

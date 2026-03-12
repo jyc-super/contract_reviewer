@@ -10,7 +10,7 @@ export function UploadCard() {
           <h2 className="text-sm font-semibold text-text-primary">새 계약 업로드</h2>
           <p className="mt-1 text-xs text-text-soft">
             PDF/DOCX 파일을 드래그 앤 드롭하거나 클릭해서 선택하세요.
-            업로드 페이지에서 파일을 선택하면 검증·텍스트 추출·구역 분류·조항 파싱이 순서대로 진행됩니다.
+            업로드 페이지에서 파일을 선택하면 검증·PDF 분석·구역 분류·조항 추출이 순서대로 진행됩니다.
           </p>
         </div>
         <Link
@@ -48,7 +48,7 @@ export function UploadCard() {
           드래그 앤 드롭하거나, 클릭해서 선택하세요.
         </p>
         <p className="mt-1 text-[11px] text-text-soft">
-          최대 50MB, 합본 PDF 지원 • 스캔본은 OCR로 자동 처리
+          최대 50MB, 합본 PDF 지원 • 스캔본은 Gemini 비전으로 분석
         </p>
       </Link>
     </div>

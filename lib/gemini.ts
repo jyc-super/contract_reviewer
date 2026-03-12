@@ -3,7 +3,6 @@ import {
   type ModelKey,
   canCall,
   recordCall,
-  getRemaining,
   waitForRateLimit,
 } from "./quota-manager";
 import { getStoredGeminiKey } from "./gemini-key-store";
@@ -12,10 +11,12 @@ import { GeminiKeyInvalidError, isGeminiKeyInvalidError } from "./gemini-errors"
 export type { ModelKey };
 
 export const MODEL_CONFIG: Record<ModelKey, string> = {
-  flash31Lite: "gemini-3.1-flash-lite",
+  // flash31Lite intentionally shares model ID with flash25Lite for separate usage tracking.
+  flash31Lite: "gemini-2.5-flash-lite",
   flash25: "gemini-2.5-flash",
   flash25Lite: "gemini-2.5-flash-lite",
-  flash3: "gemini-3-flash",
+  // flash3 uses gemini-2.0-flash (free tier: ~1500 RPD, 15 RPM).
+  flash3: "gemini-2.0-flash",
   gemma27b: "gemma-3-27b-it",
   gemma12b: "gemma-3-12b-it",
   gemma4b: "gemma-3-4b-it",
@@ -48,6 +49,19 @@ function isRetryableError(e: unknown): boolean {
     msg.includes("503") ||
     msg.includes("Service Unavailable") ||
     msg.includes("high demand")
+  );
+}
+
+/** 429 / quota exceeded — 같은 모델 재시도 없이 다음 모델로 넘어감 */
+function isQuotaExceededError(e: unknown): boolean {
+  const msg = String(e instanceof Error ? e.message : e);
+  return (
+    msg.includes("429") ||
+    msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota") ||
+    msg.includes("Quota exceeded") ||
+    msg.includes("limit: 0")
   );
 }
 
@@ -179,19 +193,22 @@ export async function callGemmaJson<T>({
   throw lastError;
 }
 
-// ─── Fallback chains ───
+// ─── Fallback chains (성능순 고정: 최고 성능 → 최하 성능) ───
 
-const ANALYSIS_FALLBACK: GeminiModelKey[] = [
-  "flash31Lite",
+const ANALYSIS_FALLBACK: TextModelKey[] = [
   "flash25",
-  "flash3",
   "flash25Lite",
+  "gemma27b",
+  "gemma12b",
+  "gemma4b",
 ];
 
 const PREPROCESSING_FALLBACK: TextModelKey[] = [
   "gemma27b",
   "gemma12b",
-  "flash31Lite",
+  "gemma4b",
+  "flash25",
+  "flash25Lite",
 ];
 
 export type FallbackChain = "analysis" | "preprocessing";
@@ -208,16 +225,9 @@ export async function callGeminiJsonWithFallback<T>({
   const fallbackKeys =
     chain === "preprocessing" ? PREPROCESSING_FALLBACK : ANALYSIS_FALLBACK;
 
-  const remaining = await getRemaining();
-  const orderedKeys = [...fallbackKeys].sort((a, b) => {
-    const remA = remaining[a].limit - remaining[a].used;
-    const remB = remaining[b].limit - remaining[b].used;
-    return remB - remA;
-  });
-
   let lastError: unknown;
 
-  for (const modelKey of orderedKeys) {
+  for (const modelKey of fallbackKeys) {
     if (!(await canCall(modelKey))) continue;
     await waitForRateLimit(modelKey);
 
@@ -229,7 +239,8 @@ export async function callGeminiJsonWithFallback<T>({
       ...(systemInstruction && !isGemma ? { systemInstruction } : {}),
     });
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const maxRetriesThisModel = 2;
+    for (let attempt = 0; attempt < maxRetriesThisModel; attempt++) {
       try {
         const result = await model.generateContent({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -252,7 +263,10 @@ export async function callGeminiJsonWithFallback<T>({
         if (isGeminiKeyInvalidError(e)) {
           throw new GeminiKeyInvalidError();
         }
-        if (isRetryableError(e) && attempt < MAX_RETRIES - 1) {
+        if (isQuotaExceededError(e)) {
+          break;
+        }
+        if (isRetryableError(e) && attempt < maxRetriesThisModel - 1) {
           await new Promise((r) => setTimeout(r, backoffMs(attempt)));
           continue;
         }

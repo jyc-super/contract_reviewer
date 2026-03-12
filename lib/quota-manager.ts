@@ -19,10 +19,13 @@ interface ModelState extends QuotaEntry {
 }
 
 const RPD_LIMITS: Record<ModelKey, number> = {
-  flash31Lite: 500,
+  // flash31Lite shares the same Gemini model ID as flash25Lite (gemini-2.5-flash-lite).
+  // Tracked separately for quota isolation between analysis and fallback usage.
+  flash31Lite: 20,
   flash25: 20,
   flash25Lite: 20,
-  flash3: 20,
+  // flash3 maps to gemini-2.0-flash (free tier: ~1500 RPD).
+  flash3: 1500,
   gemma27b: 14400,
   gemma12b: 14400,
   gemma4b: 14400,
@@ -30,10 +33,10 @@ const RPD_LIMITS: Record<ModelKey, number> = {
 };
 
 const RPM_LIMITS: Record<ModelKey, number> = {
-  flash31Lite: 15,
+  flash31Lite: 10,
   flash25: 5,
   flash25Lite: 10,
-  flash3: 5,
+  flash3: 15,
   gemma27b: 30,
   gemma12b: 30,
   gemma4b: 30,
@@ -41,10 +44,10 @@ const RPM_LIMITS: Record<ModelKey, number> = {
 };
 
 const MIN_INTERVAL: Record<ModelKey, number> = {
-  flash31Lite: 4000,
+  flash31Lite: 6000,
   flash25: 12000,
   flash25Lite: 6000,
-  flash3: 12000,
+  flash3: 4000,
   gemma27b: 2000,
   gemma12b: 2000,
   gemma4b: 2000,

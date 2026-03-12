@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabaseClientIfAvailable } from "../../../../lib/supabase/admin";
-import { getUserIdFromRequest, PLACEHOLDER_USER_ID } from "../../../../lib/auth/server";
+import { requireUserIdFromRequest } from "../../../../lib/auth/server";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const userId = (await getUserIdFromRequest(req)) ?? PLACEHOLDER_USER_ID;
+  const auth = await requireUserIdFromRequest(req);
+  if ("response" in auth) return auth.response;
+  const { userId } = auth;
   const supabase = getAdminSupabaseClientIfAvailable();
 
   if (!supabase) {

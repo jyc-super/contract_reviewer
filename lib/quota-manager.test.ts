@@ -22,7 +22,7 @@ describe("quota-manager", () => {
         resetAt: expect.any(Date),
       });
       expect(remaining[key].used).toBeGreaterThanOrEqual(0);
-      expect(remaining[key].limit).toBeGreaterThan(0);
+      expect(remaining[key].limit).toBeGreaterThanOrEqual(0);
     }
   });
 

@@ -39,13 +39,14 @@ const STUB_OUTPUT: AnalyzeClauseOutput = {
 
 async function summarizeLongClause(clauseText: string): Promise<string> {
   try {
-    const { callGemmaJson } = await import("../gemini");
-    const result = await callGemmaJson<{ summary: string }>({
-      modelKey: "gemma27b",
-      prompt: SUMMARIZE_PROMPT,
-      inputText: clauseText.slice(0, 2000),
+    const { callGeminiJsonWithFallback } = await import("../gemini");
+    const text = clauseText.slice(0, 2000);
+    const prompt = `${SUMMARIZE_PROMPT}\n\nText: "${text}"`;
+    const { data } = await callGeminiJsonWithFallback<{ summary: string }>({
+      prompt,
+      chain: "preprocessing",
     });
-    return result.summary || clauseText.slice(0, 2000);
+    return data.summary || text;
   } catch {
     return clauseText.slice(0, 2000);
   }
@@ -56,14 +57,15 @@ async function crossValidateHighRisk(
   originalLevel: string
 ): Promise<"high" | "medium" | "low" | "info" | undefined> {
   try {
-    const { callGeminiJson } = await import("../gemini");
-    const result = await callGeminiJson<{
+    const { callGeminiJsonWithFallback } = await import("../gemini");
+    const { data: result } = await callGeminiJsonWithFallback<{
       riskLevel?: string;
       confidence?: number;
+      notes?: string;
     }>({
-      modelKey: "flash25",
       prompt: `Clause text:\n${clauseText.slice(0, 4000)}`,
       systemInstruction: CROSS_VALIDATION_INSTRUCTION,
+      chain: "analysis",
     });
 
     const level = result.riskLevel;

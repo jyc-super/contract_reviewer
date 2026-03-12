@@ -104,7 +104,7 @@ export function QuotaDisplayWrapper() {
   return (
     <>
       <SidebarQuotaRow
-        label="Lite"
+        label="Lite (PDF+분석)"
         row={data.analysis}
         color="var(--accent-blue)"
       />

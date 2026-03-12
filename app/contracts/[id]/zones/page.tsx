@@ -29,8 +29,13 @@ export default async function ContractZonesPage({ params }: ContractZonesPagePro
   }
 
   const { contract, zones } = data;
-  // 검토 대기 구역: 사용자가 아직 포함/제외를 결정하지 않은 구역 (user_confirmed != true). pipeline에서 confidence < 0.7인 구역이 is_analysis_target=false로 저장됨.
-  const uncertainZones = zones.filter((z) => z.user_confirmed !== true);
+  // 검토 대기 구역: is_analysis_target=false 이면서 아직 사용자가 포함/제외를 결정하지 않은 구역.
+  // user_confirmed 컬럼 기본값은 null 이므로, `!== true` 조건만 쓰면 is_analysis_target=true 인
+  // 분석 대상 구역(자동 확정)도 리스트에 포함되어 버린다.
+  // 올바른 판별: is_analysis_target=false 이고 user_confirmed 가 null 인 zone 만 검토 목록에 표시.
+  const uncertainZones = zones.filter(
+    (z) => z.is_analysis_target === false && z.user_confirmed == null
+  );
   const analysisTargetCount = zones.filter((z) => z.is_analysis_target).length;
 
   const zoneItems = uncertainZones.map((z) => ({

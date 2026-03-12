@@ -30,7 +30,7 @@ DO NOT use any other numbers. These override all previous assumptions.
 
 | Model ID | RPM | RPD | TPM | Role |
 |----------|-----|-----|------|------|
-| gemini-3.1-flash-lite | 15 | **500** | 250K | ★★★ PRIMARY — 리스크 분석, FIDIC 비교 |
+| gemini-2.0-flash | 15 | **500** | 250K | ★★★ PRIMARY — 리스크 분석, FIDIC 비교 |
 | gemini-2.5-flash | 5 | **20** | 250K | ★ RESERVE — 교차 검증, 심층 분석 |
 | gemini-2.5-flash-lite | 10 | **20** | 250K | ★ RESERVE — 보조 |
 | gemini-3-flash | 5 | **20** | 250K | ★ RESERVE — 보조 |
@@ -63,7 +63,7 @@ TTS models, image models, video models, computer-use, deep-research
 
 ### 원칙
 1. Gemma (RPD 14,400) → 전처리/분류/단순 작업에 최대한 투입
-2. 3.1 Flash Lite (RPD 500) → 핵심 분석에만 사용, 한 방울도 아끼기
+2. 2.0 Flash (PRIMARY) → 핵심 분석에만 사용, 한 방울도 아끼기
 3. 2.5 Flash + 2.5 Flash Lite + 3 Flash (RPD 20씩) → 교차 검증/폴백 전용
 4. Embedding (RPD 1,000) → 벡터 생성 전담
 5. Gemma의 TPM이 15K로 적음 → 입력을 300자 이내로 압축 필수
@@ -82,9 +82,9 @@ export const MODEL_ROUTES = {
   QUALITY_CHECK:        'gemma-3-12b-it',    // 품질 검증
   TEXT_CLEANUP:         'gemma-3-4b-it',     // OCR 텍스트 정리
 
-  // ─── 3.1 Flash Lite 담당 (RPD 500 · 핵심 분석) ───
-  RISK_ANALYSIS:        'gemini-3.1-flash-lite',  // ★ 리스크 분석
-  FIDIC_COMPARISON:     'gemini-3.1-flash-lite',  // ★ FIDIC 비교
+  // ─── 2.0 Flash 담당 (PRIMARY · 핵심 분석) ───
+  RISK_ANALYSIS:        'gemini-2.0-flash',  // ★ 리스크 분석
+  FIDIC_COMPARISON:     'gemini-2.0-flash',  // ★ FIDIC 비교
 
   // ─── 2.5 Flash 계열 (RPD 20씩 · 교차 검증) ───
   CROSS_VALIDATION:     'gemini-2.5-flash',       // HIGH 리스크 재검증
@@ -129,7 +129,7 @@ Embedding 잔여: 960 → 추가 24건 가능
 // lib/quota-manager.ts
 
 type ModelKey =
-  | 'flash31Lite'    // gemini-3.1-flash-lite (RPD 500)
+  | 'flash31Lite'    // gemini-2.0-flash (PRIMARY)
   | 'flash25'        // gemini-2.5-flash (RPD 20)
   | 'flash25Lite'    // gemini-2.5-flash-lite (RPD 20)
   | 'flash3'         // gemini-3-flash (RPD 20)
@@ -148,7 +148,7 @@ interface ModelQuota {
 }
 
 const QUOTA_CONFIG: Record<ModelKey, ModelQuota> = {
-  flash31Lite:  { modelId: 'gemini-3.1-flash-lite', rpm: 15,  rpd: 500,   tpm: 250000, used: 0, lastCallTime: 0 },
+  flash31Lite:  { modelId: 'gemini-2.0-flash', rpm: 15,  rpd: 500,   tpm: 250000, used: 0, lastCallTime: 0 },
   flash25:      { modelId: 'gemini-2.5-flash',      rpm: 5,   rpd: 20,    tpm: 250000, used: 0, lastCallTime: 0 },
   flash25Lite:  { modelId: 'gemini-2.5-flash-lite',  rpm: 10,  rpd: 20,    tpm: 250000, used: 0, lastCallTime: 0 },
   flash3:       { modelId: 'gemini-3-flash',         rpm: 5,   rpd: 20,    tpm: 250000, used: 0, lastCallTime: 0 },
@@ -165,7 +165,7 @@ const QUOTA_CONFIG: Record<ModelKey, ModelQuota> = {
 
 ### 리스크 분석 폴백
 ```
-gemini-3.1-flash-lite (RPD 500)
+gemini-2.0-flash (PRIMARY)
   ↓ 소진 시
 gemini-2.5-flash (RPD 20)
   ↓ 소진 시
@@ -182,7 +182,7 @@ gemma-3-27b-it (RPD 14,400)
   ↓ 실패 시 (품질 문제)
 gemma-3-12b-it (RPD 14,400)
   ↓ 실패 시
-gemini-3.1-flash-lite (RPD 500) — 최후 수단, 귀한 할당량 소비
+gemini-2.0-flash (PRIMARY) — 최후 수단, 귀한 할당량 소비
 ```
 
 ### 임베딩 (폴백 없음)

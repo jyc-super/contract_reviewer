@@ -28,6 +28,7 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     if (disabled) return;
     const file = e.dataTransfer.files?.[0];
     if (file && onFileSelected) {
@@ -37,7 +38,15 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
     if (disabled) return;
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -56,6 +65,7 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
       onKeyDown={handleKeyDown}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
       className="upload-zone"
     >
       <input
@@ -65,12 +75,12 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
         className="hidden"
         onChange={handleChange}
       />
-      <div className="upload-icon">⬆</div>
-      <div className="upload-title">계약서 파일을 업로드하세요</div>
-      <p className="upload-desc">
+      <div className="upload-icon" style={{ pointerEvents: "none" }}>⬆</div>
+      <div className="upload-title" style={{ pointerEvents: "none" }}>계약서 파일을 업로드하세요</div>
+      <p className="upload-desc" style={{ pointerEvents: "none" }}>
         여기로 PDF 또는 DOCX 파일을 드래그 앤 드롭하거나, 클릭해서 파일을 선택할 수 있습니다.
       </p>
-      <div className="upload-formats">
+      <div className="upload-formats" style={{ pointerEvents: "none" }}>
         <span className="format-tag">PDF</span>
         <span className="format-tag">DOCX</span>
         <span className="format-tag">최대 50MB</span>

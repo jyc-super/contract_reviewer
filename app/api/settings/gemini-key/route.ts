@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isGeminiKeyConfigured, setStoredGeminiKey } from "@/lib/gemini-key-store";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as logger from "@/lib/logger";
+import { requireAdminApiToken } from "@/lib/auth/server";
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
 }
 
 const VERIFY_MODEL_IDS = [
-  "gemini-3.1-flash-lite",
+  "gemini-2.0-flash",
   "gemini-2.5-flash",
   "gemma-3-4b-it",
 ];
@@ -36,6 +37,9 @@ function isKeyInvalid(msg: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const adminAuth = requireAdminApiToken(req);
+  if ("response" in adminAuth) return adminAuth.response;
+
   try {
     const body = await req.json();
     const apiKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
