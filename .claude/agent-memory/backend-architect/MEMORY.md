@@ -61,7 +61,7 @@ Upload page client timeout reduced from 300s to 30s (just covers the initial POS
 ### Pipeline Observability (2026-03-11)
 - `[DoclingAdapter]` prefix: per-stage timing logs added to lib/docling-adapter.ts
 - `[processContract]` prefix: per-step timing in lib/pipeline/process-contract.ts
-- clause count mismatch (rawClauses vs qc.clauses) logs a console.warn — zoneIndex clamps to 0
+- clause count mismatch (rawClauses vs qc.clauses) logs a console.warn — zoneIndex falls back to 0
 
 ### run.bat Behavior
 - Default: jumps to `npm run dev` immediately (auto-start via instrumentation.ts)
@@ -126,6 +126,28 @@ Diagnosis commands:
 This ALSO means: always test connectivity from node.exe (Windows), not from bash/MSYS2 tools,
 since MSYS2 curl/node may use different socket layers and give different results.
 
+## Pipeline Progress Reporting (2026-03-13)
+
+### DB Column
+`contracts.parse_progress` (integer, nullable, 0–100) — added in migration 005.
+Null when not in parsing phase. Reset to null when status transitions to ready/filtering/error.
+
+### Architecture — processContract() onProgress callback
+`processContract(file, onProgress?)` — optional callback, no DB dependency in pipeline layer.
+Caller (`runParseAndPersist`) builds throttled updater via `makeProgressUpdater()`:
+- Throttle: 3_000ms minimum between DB writes (prevents Supabase Free tier hammering)
+- Fire-and-forget: callback never awaited, failure is logged as warn (non-fatal)
+- Milestones: 5 (arrayBuffer), 10 (Docling request sent), 60 (Docling response), 70 (QC done), 80 (lang detect), 90 (pre-return), 95 (pre-persistParseResult)
+
+### Status API
+`GET /api/contracts/[id]/status` now returns `parseProgress: number | null`.
+Clients should use this to animate stage 2 progress bar.
+
+### Frontend Progress Calculation (upload/page.tsx)
+Stage 2 band: stageFloor (16.67%) + (parseProgress/100) * stageBandWidth (16.67%).
+Falls back to stage-based value when parseProgress is null.
+`UploadProgressPanel` receives `parseProgress` prop — overrides fake interpolation for stage 2.
+
 ## TypeScript
 - Strict mode, no `any`
 - `globalThis` declarations need `declare global { var ... }` block
@@ -134,5 +156,29 @@ since MSYS2 curl/node may use different socket layers and give different results
 ## Cost Constraints
 - Vercel Hobby + Supabase Free + Gemini Free Tier only
 - No paid services
+
+## Parsing Pipeline — document_parts / headerFooterInfo Gap (2026-03-14)
+
+`DoclingParseResult` (lib/docling-adapter.ts line 57–64) includes `documentParts?` and
+`headerFooterInfo?`. These flow through `ParseResult` (lib/document-parser.ts line 24–26)
+but are SILENTLY DROPPED at the destructuring step in processPdf()/processDocx()
+(lib/pipeline/process-contract.ts line 79 and 172). `ProcessContractResult` has no fields
+for them, so `persistParseResult()` never writes them to DB.
+
+To fix the full chain:
+1. Migration 006 — ADD COLUMN contracts.document_parts JSONB, header_footer_info JSONB, toc_entries JSONB
+2. ProcessContractResult — add documentParts, headerFooterInfo fields
+3. processPdf/processDocx destructuring — capture the two fields
+4. persistParseResult() contracts UPDATE — include document_parts, header_footer_info
+5. zones GET (contracts/route.ts line 31, 70–75) — select and return both columns
+6. document_zones select (zones/route.ts line 45) — add page_from, page_to
+
+Migration numbering: highest is 005. Next: 006_add_document_parts_hfi.sql, 007_add_clause_zone_key.sql
+
+`sectionsToClauses()` DOES emit `zoneKey: section.zone_hint` on each ParsedClause (confirmed).
+`ClauseForDb` DOES have a `zoneKey?: string` field (process-contract.ts).
+`DocumentZone` now has `text?: string` — populated by sectionsToZones() (M-5 fix, 2026-03-14).
+
+See: `docs/parsing-quality-improvement-plan.md` Section 7 for full gap details with line numbers.
 
 See: `docs/` for migration and setup guides.

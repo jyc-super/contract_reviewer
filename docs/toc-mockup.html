@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContractLens — TOC 패널 목업</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─────────────────────────────────────────────────────────────
+       디자인 토큰 (globals.css + tailwind.config.ts 기반)
+    ───────────────────────────────────────────────────────────── */
+    :root {
+      --bg-primary:   #0F1117;
+      --bg-secondary: #161821;
+      --bg-tertiary:  #1C1F2E;
+      --bg-card:      #1A1D2B;
+      --bg-hover:     #222539;
+
+      --border:       #2A2D3E;
+      --border-light: #353850;
+
+      --text-primary:   #E8E9ED;
+      --text-secondary: #9496A8;
+      --text-muted:     #6B6E82;
+
+      --accent-blue:        #4C8BF5;
+      --accent-blue-dim:    rgba(76,139,245,0.15);
+      --accent-green:       #34D399;
+      --accent-green-dim:   rgba(52,211,153,0.12);
+      --accent-yellow:      #FBBF24;
+      --accent-yellow-dim:  rgba(251,191,36,0.12);
+      --accent-red:         #F87171;
+      --accent-red-dim:     rgba(248,113,113,0.12);
+      --accent-orange:      #FB923C;
+      --accent-orange-dim:  rgba(251,146,60,0.12);
+      --accent-purple:      #A78BFA;
+
+      --radius:    8px;
+      --radius-lg: 12px;
+      --shadow:    0 2px 8px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.6;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       앱 레이아웃
+    ───────────────────────────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       사이드바 (260px)
+    ───────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      transition: width var(--transition);
+      flex-shrink: 0;
+    }
+    .sidebar.collapsed {
+      width: 60px;
+      min-width: 60px;
+    }
+
+    .sidebar-logo {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .sidebar.collapsed .sidebar-logo { padding: 20px 0; justify-content: center; gap: 0; }
+    .sidebar.collapsed .sidebar-logo-text { display: none; }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      background: linear-gradient(135deg, var(--accent-blue), #7C5CFC);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      font-family: "Source Serif 4", serif;
+    }
+    .logo-text-wrap { flex: 1; min-width: 0; }
+    .logo-name { font-weight: 600; font-size: 15px; letter-spacing: -0.3px; white-space: nowrap; }
+    .logo-sub  { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+    }
+    .sidebar.collapsed .sidebar-nav { padding: 16px 6px; }
+
+    .nav-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      padding: 12px 12px 8px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .sidebar.collapsed .nav-section-label { display: none; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 400;
+      margin-bottom: 2px;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-blue-dim); color: var(--accent-blue); font-weight: 500; }
+    .nav-icon { width: 18px; min-width: 18px; display: flex; align-items: center; justify-content: center; }
+    .sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
+    .sidebar.collapsed .nav-label { display: none; }
+
+    /* 사이드바 접기 버튼 */
+    .sidebar-collapse-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      margin-bottom: 8px;
+    }
+    .sidebar-collapse-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    /* 할당량 영역 */
+    .sidebar-quota {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      flex-shrink: 0;
+    }
+    .sidebar.collapsed .sidebar-quota { display: none; }
+    .quota-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; }
+    .quota-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+    .quota-label { width: 60px; color: var(--text-muted); }
+    .quota-bar { flex: 1; height: 4px; background: var(--bg-primary); border-radius: 2px; overflow: hidden; }
+    .quota-bar-fill { height: 100%; border-radius: 2px; }
+    .quota-value { width: 50px; text-align: right; color: var(--text-secondary); font-family: "JetBrains Mono", monospace; font-size: 10px; }
+    .quota-reset { font-size: 10px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+
+    /* ─────────────────────────────────────────────────────────────
+       중앙 영역 (탭 + 컨텐츠)
+    ───────────────────────────────────────────────────────────── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* 탭 네비게이션 바 */
+    .tab-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      height: 48px;
+    }
+    .tab-list { display: flex; align-items: center; gap: 0; height: 100%; }
+    .tab-btn {
+      height: 100%;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      transition: color var(--transition);
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--accent-blue); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent-blue);
+      border-radius: 1px 1px 0 0;
+    }
+    .tab-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-ghost-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+    .btn-ghost-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .btn-ghost-active {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+    .btn-primary {
+      background: var(--accent-blue);
+      color: white;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* 컨텐츠 행 (TOC + 카드 목록) */
+    .content-row {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       페이지 헤더 + 필터 바
+    ───────────────────────────────────────────────────────────── */
+    .clause-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .page-header {
+      padding: 24px 32px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+    .page-title {
+      font-family: "Source Serif 4", serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .page-subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+    .risk-summary { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 12px; }
+    .risk-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    .risk-dot.high    { background: var(--accent-red); }
+    .risk-dot.medium  { background: var(--accent-orange); }
+    .risk-dot.low     { background: var(--accent-green); }
+
+    .filter-bar {
+      padding: 16px 32px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 4px;
+      gap: 2px;
+    }
+    .filter-tab {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      background: transparent;
+      color: var(--text-muted);
+    }
+    .filter-tab:hover { color: var(--text-secondary); }
+    .filter-tab.active { background: var(--bg-hover); color: var(--text-primary); }
+
+    .search-input {
+      padding: 7px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: 'Noto Sans KR', sans-serif;
+      width: 240px;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus { border-color: var(--accent-blue); }
+
+    /* 카드 목록 스크롤 영역 */
+    .clause-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 32px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .clause-list::-webkit-scrollbar { width: 6px; }
+    .clause-list::-webkit-scrollbar-track { background: transparent; }
+    .clause-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ─────────────────────────────────────────────────────────────
+       섹션 그룹 헤더 (ClauseSectionGroup)
+    ───────────────────────────────────────────────────────────── */
+    .section-group { margin-bottom: 4px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+    .section-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      padding: 1px 8px;
+    }
+    .section-divider { flex: 1; height: 1px; background: var(--border); }
+    .section-chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .section-chevron.open { transform: rotate(90deg); }
+
+    .section-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+    .section-body.collapsed { max-height: 0 !important; opacity: 0; }
+
+    /* ─────────────────────────────────────────────────────────────
+       조항 카드 (ClauseDocumentItem)
+    ───────────────────────────────────────────────────────────── */
+    .clause-card {
+      border-radius: var(--radius-lg);
+      border-left: 4px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: border-color var(--transition);
+    }
+    .clause-card.risk-high   { border-left-color: var(--accent-red); }
+    .clause-card.risk-medium { border-left-color: var(--accent-orange); }
+    .clause-card.risk-low    { border-left-color: var(--accent-green); }
+    .clause-card.active-card { box-shadow: 0 0 0 1px var(--accent-blue), var(--shadow-lg); }
+
+    .clause-card-header {
+      display: grid;
+      grid-template-columns: 1.5rem 4.5rem 1fr;
+      gap: 0 12px;
+      padding: 16px 20px 12px;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    .clause-card-header:hover { background: rgba(255,255,255,0.03); }
+
+    .clause-chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .clause-chevron.open { transform: rotate(90deg); }
+
+    .clause-num-col { display: flex; flex-direction: column; gap: 2px; }
+    .clause-prefix { font-size: 10px; color: var(--text-muted); font-family: "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: 0.5px; }
+    .clause-num { font-size: 14px; font-weight: 600; color: var(--accent-blue); font-family: "JetBrains Mono", monospace; }
+
+    .clause-title-col { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .clause-title { font-size: 14px; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+    .clause-title.high-risk { color: var(--text-primary); }
+    .clause-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .risk-badge.high   { background: var(--accent-red-dim);    color: var(--accent-red); }
+    .risk-badge.medium { background: var(--accent-orange-dim); color: var(--accent-orange); }
+    .risk-badge.low    { background: var(--accent-green-dim);  color: var(--accent-green); }
+
+    .zone-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 500;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+
+    /* 카드 본문 */
+    .clause-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.3s ease, opacity 0.2s ease;
+    }
+    .clause-body.open {
+      max-height: 400px;
+      opacity: 1;
+    }
+    .clause-text {
+      padding: 0 20px 12px;
+      padding-left: calc(20px + 1.5rem + 4.5rem + 24px);
+      font-size: 13px;
+      line-height: 1.75;
+      color: rgba(232,233,237,0.8);
+      white-space: pre-wrap;
+    }
+    .clause-analysis {
+      margin: 4px 20px 16px;
+      margin-left: calc(20px + 1.5rem + 4.5rem + 24px);
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .analysis-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px; }
+    .analysis-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .analysis-rec { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .analysis-rec-arrow { color: var(--accent-blue); flex-shrink: 0; margin-top: 1px; }
+
+    /* ─────────────────────────────────────────────────────────────
+       TOC 패널 (224px / w-56)
+    ───────────────────────────────────────────────────────────── */
+    .toc-panel {
+      width: 224px;
+      min-width: 224px;
+      height: 100%;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+
+      /* 슬라이드 인/아웃 */
+      transition: width 0.3s ease, min-width 0.3s ease, opacity 0.2s ease;
+    }
+    .toc-panel.hidden-toc {
+      width: 0;
+      min-width: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .toc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .toc-header-left { display: flex; align-items: center; gap: 8px; }
+    .toc-header-icon { width: 16px; height: 16px; color: var(--text-muted); }
+    .toc-header-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); }
+    .toc-count {
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .toc-close-btn {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: var(--transition);
+    }
+    .toc-close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .toc-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .toc-scroll::-webkit-scrollbar { width: 4px; }
+    .toc-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+    /* TOC 섹션 */
+    .toc-section { margin-bottom: 4px; }
+    .toc-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toc-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      transition: color var(--transition);
+    }
+    .toc-section-label.has-active { color: var(--accent-blue); }
+    .toc-section-chevron {
+      width: 12px; height: 12px;
+      color: var(--text-muted);
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .toc-section-chevron.open { transform: rotate(90deg); }
+
+    /* TOC 조항 항목 */
+    .toc-clause-list { list-style: none; }
+    .toc-clause-list.collapsed { display: none; }
+
+    .toc-clause-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      font-size: 12px;
+      text-align: left;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: color var(--transition), background var(--transition);
+      line-height: 1.4;
+    }
+    .toc-clause-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    /* 활성 항목 */
+    .toc-clause-btn.active {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+      font-weight: 500;
+      /* 왼쪽 파란 바 — 오른쪽 border로 구현 (패널 왼쪽 끝 기준) */
+      box-shadow: inset 2px 0 0 var(--accent-blue);
+    }
+
+    .toc-clause-num {
+      flex-shrink: 0;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px;
+      min-width: 2.5rem;
+      color: var(--text-muted);
+    }
+    .toc-clause-btn.active .toc-clause-num { color: var(--accent-blue); }
+
+    .toc-clause-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* 리스크 도트 */
+    .risk-dot-sm {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .risk-dot-sm.high   { background: var(--accent-red); }
+    .risk-dot-sm.medium { background: var(--accent-orange); }
+    .risk-dot-sm.low    { background: var(--accent-green); }
+
+    /* ─────────────────────────────────────────────────────────────
+       SVG 인라인 아이콘 헬퍼
+    ───────────────────────────────────────────────────────────── */
+    svg { display: inline-block; vertical-align: middle; }
+
+    /* 스크롤바 전역 스타일 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* 목업 라벨 (실제 앱에는 없음) */
+    .mockup-badge {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: var(--accent-purple);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      z-index: 9999;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══════════════════════════════════════
+       사이드바
+  ═══════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">C</div>
+      <div class="logo-text-wrap sidebar-logo-text">
+        <div class="logo-name">ContractLens</div>
+        <div class="logo-sub">Risk Analysis Platform</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- 접기 버튼 -->
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="사이드바 접기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>
+        </svg>
+      </button>
+
+      <p class="nav-section-label">메뉴</p>
+      <a class="nav-item" href="#">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </span>
+        <span class="nav-label">대시보드</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </span>
+        <span class="nav-label">계약서 업로드</span>
+      </a>
+
+      <p class="nav-section-label">계약서</p>
+      <a class="nav-item active" href="#">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </span>
+        <span class="nav-label">계약 목록</span>
+      </a>
+
+      <p class="nav-section-label">시스템</p>
+      <a class="nav-item" href="#">
+        <span class="nav-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        </span>
+        <span class="nav-label">설정</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-quota">
+      <div class="quota-title">API 할당량</div>
+      <div class="quota-row">
+        <span class="quota-label">Flash</span>
+        <div class="quota-bar"><div class="quota-bar-fill" style="width:62%;background:var(--accent-blue)"></div></div>
+        <span class="quota-value">38/100</span>
+      </div>
+      <div class="quota-row">
+        <span class="quota-label">Pro</span>
+        <div class="quota-bar"><div class="quota-bar-fill" style="width:20%;background:var(--accent-green)"></div></div>
+        <span class="quota-value">4/20</span>
+      </div>
+      <div class="quota-reset">리셋: 매일 17:00 KST</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════
+       중앙 영역
+  ═══════════════════════════════════════ -->
+  <div class="main-area">
+
+    <!-- 탭 네비게이션 -->
+    <div class="tab-nav">
+      <div class="tab-list">
+        <button class="tab-btn" onclick="setTab(this)">구역 검토</button>
+        <button class="tab-btn active" onclick="setTab(this)">조항 분석</button>
+        <button class="tab-btn" onclick="setTab(this)">리포트</button>
+      </div>
+      <div class="tab-actions">
+        <!-- 목차 토글 버튼 -->
+        <button class="btn-ghost btn-ghost-active" id="tocToggleBtn" onclick="toggleToc()" aria-label="목차 닫기">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          목차
+        </button>
+        <button class="btn-ghost btn-ghost-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+          전체 펼치기
+        </button>
+        <button class="btn-ghost btn-primary">
+          ⚡ 분석 실행 (3건)
+        </button>
+      </div>
+    </div>
+
+    <!-- 컨텐츠 행 -->
+    <div class="content-row">
+
+      <!-- ───────────────────────────────
+           TOC 패널 (왼쪽)
+      ─────────────────────────────────── -->
+      <aside class="toc-panel" id="tocPanel" aria-label="문서 목차">
+        <div class="toc-header">
+          <div class="toc-header-left">
+            <!-- BookOpen 아이콘 -->
+            <svg class="toc-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+            <span class="toc-header-title">목차</span>
+            <span class="toc-count">8</span>
+          </div>
+          <button class="toc-close-btn" onclick="toggleToc()" aria-label="목차 닫기">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="toc-scroll">
+
+          <!-- ── 섹션 1: 일반 조항 (펼쳐진 상태) ── -->
+          <div class="toc-section">
+            <div class="toc-section-header" onclick="toggleTocSection('sec-general', this)">
+              <span class="toc-section-label has-active" id="sec-general-label">일반 조항</span>
+              <svg class="toc-section-chevron open" id="sec-general-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <ul class="toc-clause-list" id="sec-general">
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-1')">
+                  <span class="toc-clause-num">1.</span>
+                  <span class="toc-clause-title">정의 및 해석</span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-2')">
+                  <span class="toc-clause-num">2.</span>
+                  <span class="toc-clause-title">계약 기간</span>
+                  <span class="risk-dot-sm medium"></span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn active" id="toc-active-btn" onclick="setActiveClause(this, 'clause-3')">
+                  <span class="toc-clause-num">3.</span>
+                  <span class="toc-clause-title">계약금액 및 지급</span>
+                  <span class="risk-dot-sm high"></span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-4')">
+                  <span class="toc-clause-num">4.</span>
+                  <span class="toc-clause-title">변경 및 수정</span>
+                  <span class="risk-dot-sm low"></span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- ── 섹션 2: 특수 조항 (펼쳐진 상태) ── -->
+          <div class="toc-section">
+            <div class="toc-section-header" onclick="toggleTocSection('sec-special', this)">
+              <span class="toc-section-label" id="sec-special-label">특수 조항</span>
+              <svg class="toc-section-chevron open" id="sec-special-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <ul class="toc-clause-list" id="sec-special">
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-5')">
+                  <span class="toc-clause-num">5.</span>
+                  <span class="toc-clause-title">불가항력</span>
+                  <span class="risk-dot-sm medium"></span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-6')">
+                  <span class="toc-clause-num">6.</span>
+                  <span class="toc-clause-title">분쟁 해결</span>
+                  <span class="risk-dot-sm high"></span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-7')">
+                  <span class="toc-clause-num">7.</span>
+                  <span class="toc-clause-title">손해배상</span>
+                  <span class="risk-dot-sm high"></span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-8')">
+                  <span class="toc-clause-num">8.</span>
+                  <span class="toc-clause-title">계약 해지</span>
+                  <span class="risk-dot-sm medium"></span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- ── 섹션 3: 부속 문서 (접힌 상태) ── -->
+          <div class="toc-section">
+            <div class="toc-section-header" onclick="toggleTocSection('sec-appendix', this)">
+              <span class="toc-section-label" id="sec-appendix-label">부속 문서</span>
+              <svg class="toc-section-chevron" id="sec-appendix-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <ul class="toc-clause-list collapsed" id="sec-appendix">
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-a1')">
+                  <span class="toc-clause-num">A1.</span>
+                  <span class="toc-clause-title">기술 사양서</span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-a2')">
+                  <span class="toc-clause-num">A2.</span>
+                  <span class="toc-clause-title">가격 명세표</span>
+                </button>
+              </li>
+              <li>
+                <button class="toc-clause-btn" onclick="setActiveClause(this, 'clause-a3')">
+                  <span class="toc-clause-num">A3.</span>
+                  <span class="toc-clause-title">공정 일정표</span>
+                  <span class="risk-dot-sm low"></span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+        </div><!-- /toc-scroll -->
+      </aside>
+
+      <!-- ───────────────────────────────
+           조항 카드 목록 (오른쪽)
+      ─────────────────────────────────── -->
+      <div class="clause-area">
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+          <div>
+            <div class="page-title">조항 분석</div>
+            <div class="page-subtitle">공사도급계약서_2024.pdf &middot; 8개 조항 &middot; 분석 5건</div>
+            <div class="risk-summary">
+              <span><span class="risk-dot high"></span><span style="color:var(--text-secondary)">High 3</span></span>
+              <span><span class="risk-dot medium"></span><span style="color:var(--text-secondary)">Medium 3</span></span>
+              <span><span class="risk-dot low"></span><span style="color:var(--text-secondary)">Low 2</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 필터 바 -->
+        <div class="filter-bar">
+          <div class="filter-tabs">
+            <button class="filter-tab active">전체</button>
+            <button class="filter-tab">HIGH</button>
+            <button class="filter-tab">MEDIUM</button>
+            <button class="filter-tab">LOW</button>
+            <button class="filter-tab">INFO</button>
+          </div>
+          <input class="search-input" type="text" placeholder="조항 텍스트 검색..." />
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn-ghost btn-ghost-secondary" style="font-size:12px;">섹션 전체 접기</button>
+            <button class="btn-ghost btn-ghost-secondary" style="font-size:12px;color:var(--accent-red);background:var(--accent-red-dim);">고위험만 펼치기</button>
+          </div>
+        </div>
+
+        <!-- 조항 카드 목록 -->
+        <div class="clause-list">
+
+          <!-- ── 섹션 그룹: 일반 조항 ── -->
+          <div class="section-group">
+            <div class="section-header" onclick="toggleSection('sg-general', this)">
+              <span class="section-label">일반 조항</span>
+              <span class="section-count">4개 조항</span>
+              <div class="section-divider"></div>
+              <svg class="section-chevron open" id="sg-general-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+
+            <div class="section-body" id="sg-general" style="max-height:2000px;">
+
+              <!-- 카드 1: 정의 및 해석 (리스크 없음, 접힌 상태) -->
+              <div class="clause-card" id="clause-1">
+                <div class="clause-card-header" onclick="toggleCard('card-body-1', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">1.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title">정의 및 해석</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">일반조건</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-1">
+                  <div class="clause-text">본 계약에서 사용되는 용어는 다음과 같이 정의한다. "발주자"라 함은 공사를 발주하고 계약상대자에게 대가를 지급하는 자를 말하며, "수급인"이라 함은 공사의 시공을 담당하는 법인 또는 개인을 말한다. "공사"라 함은 이 계약에 의하여 수급인이 완성하여야 할 시설물의 건설, 개량, 수리 등 일체의 작업을 말한다.</div>
+                  <div class="clause-analysis" style="background:var(--bg-tertiary);">
+                    <div class="analysis-section-title">분석 대기 중</div>
+                    <div class="analysis-text" style="color:var(--text-muted);font-size:12px;">이 조항은 아직 분석되지 않았습니다.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 카드 2: 계약 기간 (medium) -->
+              <div class="clause-card risk-medium" id="clause-2">
+                <div class="clause-card-header" onclick="toggleCard('card-body-2', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">2.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title">계약 기간</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">일반조건</span>
+                      <span class="risk-badge medium">MEDIUM</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-2">
+                  <div class="clause-text">공사 기간은 계약 체결일로부터 착공일을 기산하여 2024년 12월 31일까지로 한다. 다만, 발주자의 지시 또는 불가항력적 사유로 인하여 공기 연장이 불가피한 경우에는 발주자와 수급인이 협의하여 공기를 연장할 수 있다. 공기 연장 신청은 사유 발생일로부터 14일 이내에 서면으로 제출하여야 한다.</div>
+                  <div class="clause-analysis">
+                    <div style="margin-bottom:10px;">
+                      <div class="analysis-section-title">리스크 요약</div>
+                      <div class="analysis-text">공기 연장 요건이 발주자 재량에 의존적으로 설정되어 있어 수급인에게 불리합니다. "협의"라는 표현이 모호하며, 발주자 귀책의 공기 연장에 대한 보상 조항이 누락되어 있습니다.</div>
+                    </div>
+                    <div>
+                      <div class="analysis-section-title">수정 권고사항</div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>발주자 귀책에 의한 공기 연장 시 간접비 보상 조항 추가를 권고합니다.</span></div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>공기 연장 승인/거절 기한을 명시하여 분쟁 가능성을 낮추세요.</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 카드 3: 계약금액 및 지급 (high, 활성 — 펼쳐진 상태) -->
+              <div class="clause-card risk-high active-card" id="clause-3">
+                <div class="clause-card-header" onclick="toggleCard('card-body-3', this)">
+                  <svg class="clause-chevron open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">3.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title" style="color:var(--text-primary);font-weight:700;">계약금액 및 지급</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">일반조건</span>
+                      <span class="risk-badge high">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body open" id="card-body-3">
+                  <div class="clause-text">계약금액은 금 오십억 원(₩5,000,000,000)으로 하며, 부가가치세는 별도로 한다. 기성금은 매월 25일 기성 검사 후 발주자 승인일로부터 60일 이내에 지급한다. 발주자는 공사 진행 상황, 품질 기준, 공정 계획 대비 실적 등을 종합적으로 고려하여 기성금 지급액을 단독으로 결정할 수 있으며, 이에 대해 수급인은 이의를 제기할 수 없다. 선급금은 계약금액의 20%를 계약 체결 후 30일 이내에 지급하며, 선급금 보증서 제출을 조건으로 한다.</div>
+                  <div class="clause-analysis">
+                    <div style="margin-bottom:10px;">
+                      <div class="analysis-section-title">리스크 요약</div>
+                      <div class="analysis-text">"발주자가 단독으로 결정"하고 "이의를 제기할 수 없다"는 문구가 수급인의 기본적인 이의신청권을 완전히 박탈합니다. 이는 FIDIC 기준 대비 현저히 불균형한 조항으로, 법원에서 무효로 판단될 수 있습니다. 기성금 지급 기한 60일은 업계 표준(30일)의 2배로 수급인 자금 운용에 심각한 부담을 초래합니다.</div>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                      <div class="analysis-section-title">수정 권고사항</div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>"발주자 단독 결정" 문구를 "발주자와 수급인의 합의에 의해 결정"으로 수정하세요.</span></div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>이의신청 권리 및 분쟁 해결 절차를 명시적으로 보장하는 조항을 삽입하세요.</span></div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>기성금 지급 기한을 30일 이내로 단축하고, 지연 지급 시 이자 조항을 추가하세요.</span></div>
+                    </div>
+                    <div>
+                      <div class="analysis-section-title">FIDIC 비교</div>
+                      <div style="background:var(--bg-tertiary);border-radius:6px;padding:10px;margin-top:4px;">
+                        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);">FIDIC 편차 분석</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.6;">FIDIC Red Book Clause 14.7은 기성금 지급을 검사 확인 후 28일 이내로 규정합니다. 발주자의 일방적 지급액 결정권은 FIDIC 원칙과 배치되며, Engineer의 독립적 검증 역할이 본 계약에서 완전히 배제되어 있습니다.</div>
+                      </div>
+                    </div>
+                    <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">모델: gemini-2.0-flash</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 카드 4: 변경 및 수정 (low, 접힌 상태) -->
+              <div class="clause-card risk-low" id="clause-4">
+                <div class="clause-card-header" onclick="toggleCard('card-body-4', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">4.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title">변경 및 수정</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">일반조건</span>
+                      <span class="risk-badge low">LOW</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-4">
+                  <div class="clause-text">계약 내용의 변경은 발주자와 수급인 쌍방의 서면 합의에 의하여야 한다. 설계 변경 등으로 인한 계약금액 조정은 변경된 공사량에 단가를 적용하여 산정하며, 단가가 없는 경우에는 협의하여 결정한다.</div>
+                  <div class="clause-analysis">
+                    <div style="margin-bottom:10px;">
+                      <div class="analysis-section-title">리스크 요약</div>
+                      <div class="analysis-text">전반적으로 균형적인 조항입니다. 쌍방 서면 합의 원칙이 명확하게 규정되어 있으며, 단가 산정 방식도 합리적입니다.</div>
+                    </div>
+                    <div>
+                      <div class="analysis-section-title">수정 권고사항</div>
+                      <div class="analysis-rec"><span class="analysis-rec-arrow">→</span><span>변경 합의 기한(예: 15일 이내)을 명시하면 분쟁 예방에 도움이 됩니다.</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /section-body sg-general -->
+          </div><!-- /section-group -->
+
+          <!-- ── 섹션 그룹: 특수 조항 ── -->
+          <div class="section-group">
+            <div class="section-header" onclick="toggleSection('sg-special', this)">
+              <span class="section-label">특수 조항</span>
+              <span class="section-count">4개 조항</span>
+              <div class="section-divider"></div>
+              <svg class="section-chevron open" id="sg-special-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <div class="section-body" id="sg-special" style="max-height:2000px;">
+
+              <!-- 카드 5: 불가항력 (medium) -->
+              <div class="clause-card risk-medium" id="clause-5">
+                <div class="clause-card-header" onclick="toggleCard('card-body-5', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">5.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title">불가항력</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">특수조건</span>
+                      <span class="risk-badge medium">MEDIUM</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-5"></div>
+              </div>
+
+              <!-- 카드 6: 분쟁 해결 (high) -->
+              <div class="clause-card risk-high" id="clause-6">
+                <div class="clause-card-header" onclick="toggleCard('card-body-6', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">6.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title" style="font-weight:700;">분쟁 해결</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">특수조건</span>
+                      <span class="risk-badge high">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-6"></div>
+              </div>
+
+              <!-- 카드 7: 손해배상 (high) -->
+              <div class="clause-card risk-high" id="clause-7">
+                <div class="clause-card-header" onclick="toggleCard('card-body-7', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">7.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title" style="font-weight:700;">손해배상</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">특수조건</span>
+                      <span class="risk-badge high">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-7"></div>
+              </div>
+
+              <!-- 카드 8: 계약 해지 (medium) -->
+              <div class="clause-card risk-medium" id="clause-8">
+                <div class="clause-card-header" onclick="toggleCard('card-body-8', this)">
+                  <svg class="clause-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                  <div class="clause-num-col">
+                    <span class="clause-num">8.</span>
+                  </div>
+                  <div class="clause-title-col">
+                    <span class="clause-title">계약 해지</span>
+                    <div class="clause-badges">
+                      <span class="zone-badge">특수조건</span>
+                      <span class="risk-badge medium">MEDIUM</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="clause-body" id="card-body-8"></div>
+              </div>
+
+            </div><!-- /section-body sg-special -->
+          </div><!-- /section-group -->
+
+        </div><!-- /clause-list -->
+      </div><!-- /clause-area -->
+
+    </div><!-- /content-row -->
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<!-- 목업 라벨 -->
+<div class="mockup-badge">MOCKUP</div>
+
+<script>
+  /* ─────────────────────────────────────────────
+     사이드바 접기 토글
+  ───────────────────────────────────────────── */
+  const sidebar = document.getElementById('sidebar');
+  const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+
+  sidebarCollapseBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+  });
+
+  /* ─────────────────────────────────────────────
+     탭 전환
+  ───────────────────────────────────────────── */
+  function setTab(btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  /* ─────────────────────────────────────────────
+     TOC 패널 토글
+  ───────────────────────────────────────────── */
+  const tocPanel   = document.getElementById('tocPanel');
+  const tocToggle  = document.getElementById('tocToggleBtn');
+  let tocVisible   = true;
+
+  function toggleToc() {
+    tocVisible = !tocVisible;
+    if (tocVisible) {
+      tocPanel.classList.remove('hidden-toc');
+      tocToggle.classList.remove('btn-ghost-secondary');
+      tocToggle.classList.add('btn-ghost-active');
+      tocToggle.setAttribute('aria-label', '목차 닫기');
+    } else {
+      tocPanel.classList.add('hidden-toc');
+      tocToggle.classList.remove('btn-ghost-active');
+      tocToggle.classList.add('btn-ghost-secondary');
+      tocToggle.setAttribute('aria-label', '목차 열기');
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     TOC 섹션 접기/펼치기
+  ───────────────────────────────────────────── */
+  function toggleTocSection(listId, headerEl) {
+    const list    = document.getElementById(listId);
+    const chevron = headerEl.querySelector('.toc-section-chevron');
+    const isOpen  = !list.classList.contains('collapsed');
+
+    if (isOpen) {
+      list.classList.add('collapsed');
+      chevron.classList.remove('open');
+    } else {
+      list.classList.remove('collapsed');
+      chevron.classList.add('open');
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     TOC 활성 조항 변경
+  ───────────────────────────────────────────── */
+  let currentActiveTocBtn = document.getElementById('toc-active-btn');
+
+  function setActiveClause(btn, clauseId) {
+    // TOC 버튼 활성화
+    if (currentActiveTocBtn) currentActiveTocBtn.classList.remove('active');
+    btn.classList.add('active');
+    currentActiveTocBtn = btn;
+
+    // 대응하는 카드 스크롤
+    const card = document.getElementById(clauseId);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // 카드 pulse 강조 효과
+      card.style.transition = 'box-shadow 0.3s ease';
+      card.style.boxShadow = '0 0 0 2px var(--accent-blue), 0 8px 32px rgba(0,0,0,0.4)';
+      setTimeout(() => {
+        card.style.boxShadow = '';
+      }, 1200);
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     조항 섹션 그룹 접기/펼치기
+  ───────────────────────────────────────────── */
+  function toggleSection(bodyId, headerEl) {
+    const body    = document.getElementById(bodyId);
+    const chevron = headerEl.querySelector('.section-chevron');
+    const isOpen  = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+
+    if (isOpen) {
+      body.style.maxHeight = body.scrollHeight + 'px'; // 애니메이션 시작점 고정
+      requestAnimationFrame(() => {
+        body.style.maxHeight = '0px';
+        body.style.opacity   = '0';
+        body.style.overflow  = 'hidden';
+      });
+      chevron.classList.remove('open');
+    } else {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      body.style.opacity   = '1';
+      chevron.classList.add('open');
+      // 애니메이션 끝나면 max-height 해제 (내부 높이 변경 대응)
+      body.addEventListener('transitionend', function onEnd() {
+        body.style.maxHeight = '2000px';
+        body.removeEventListener('transitionend', onEnd);
+      }, { once: true });
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     조항 카드 접기/펼치기
+  ───────────────────────────────────────────── */
+  function toggleCard(bodyId, headerEl) {
+    const body    = document.getElementById(bodyId);
+    const chevron = headerEl.querySelector('.clause-chevron');
+
+    body.classList.toggle('open');
+    chevron.classList.toggle('open');
+  }
+
+  /* ─────────────────────────────────────────────
+     필터 탭 상호작용
+  ───────────────────────────────────────────── */
+  document.querySelectorAll('.filter-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

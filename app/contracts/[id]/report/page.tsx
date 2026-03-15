@@ -39,6 +39,7 @@ export default async function ContractReportPage({ params }: ContractReportPageP
           : JSON.stringify(a.fidic_comparisons)
         : "";
     return {
+      id: c.id,
       no: index + 1,
       title: c.title ?? c.number ?? c.clause_prefix ?? `조항 ${index + 1}`,
       riskLevel: a?.risk_level ?? "-",
@@ -55,11 +56,7 @@ export default async function ContractReportPage({ params }: ContractReportPageP
             {contract.name} 계약의 조항별 리스크 레벨 및 FIDIC 편차 요약입니다.
           </p>
         </div>
-        <div className="page-actions">
-          <Link href={`/contracts/${id}`} className="btn btn-outline">
-            계약 상세로 돌아가기
-          </Link>
-        </div>
+        <div className="page-actions" />
       </header>
 
       <main className="page-body">
@@ -79,7 +76,7 @@ export default async function ContractReportPage({ params }: ContractReportPageP
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.no}>
+                  <tr key={row.id}>
                     <td>{row.no}</td>
                     <td>{row.title}</td>
                     <td>

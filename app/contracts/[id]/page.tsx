@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getContractDetail } from "../../../lib/data/contracts";
+import type { SubDocument } from "../../../lib/docling-adapter";
 import { ContractDetailView } from "../../../components/contract/ContractDetailView";
 
 interface ContractPageProps {
@@ -31,16 +32,40 @@ export default async function ContractPage({ params }: ContractPageProps) {
   const { contract, clauses, analyses } = data;
   const analysisMap = new Map(analyses.map((a) => [a.clause_id, a]));
 
+  // Build a zone lookup so we can map each clause's zone_id → page_from,
+  // which is then used to determine which sub_document the clause belongs to.
+  const zonePageMap = new Map(data.zones.map((z) => [z.id, z.page_from]));
+
+  const subDocuments: SubDocument[] = (contract.sub_documents as SubDocument[] | undefined) ?? [];
+
   const clauseItems = clauses.map((c) => {
     const a = analysisMap.get(c.id);
+
+    // Determine subDocumentTitle by matching the clause's zone page_from
+    // against each sub_document's [page_start, page_end] range.
+    let subDocumentTitle: string | undefined;
+    if (subDocuments.length > 0) {
+      const pageFrom = zonePageMap.get(c.zone_id);
+      if (pageFrom !== undefined) {
+        const subDoc = subDocuments.find(
+          (sd) => pageFrom >= sd.page_start && pageFrom <= sd.page_end
+        );
+        subDocumentTitle = subDoc?.title;
+      }
+    }
+
     return {
       id: c.id,
       title: c.title ?? undefined,
-      textPreview: c.text.slice(0, 150) + (c.text.length > 150 ? "..." : ""),
+      text: c.text,
       clausePrefix: c.clause_prefix ?? undefined,
       number: c.number ?? undefined,
       riskLevel: a?.risk_level,
       needsReview: c.needs_review,
+      sortOrder: c.sort_order,
+      zoneKey: c.zone_key ?? undefined,
+      zoneId: c.zone_id ?? undefined,
+      subDocumentTitle,
     };
   });
 
@@ -50,6 +75,7 @@ export default async function ContractPage({ params }: ContractPageProps) {
       contract={contract}
       clauseItems={clauseItems}
       analyses={analyses}
+      zones={data.zones}
     />
   );
 }

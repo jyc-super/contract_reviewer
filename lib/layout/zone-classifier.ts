@@ -6,6 +6,56 @@
 import type { LayoutBlock } from "./types";
 import PATTERNS from "./document-part-patterns.json";
 
+// ---------------------------------------------------------------------------
+// Zone display metadata (used by ContractDetailView and ClauseSectionGroup)
+// ---------------------------------------------------------------------------
+
+export const ZONE_LABELS: Record<string, string> = {
+  preamble: "문서 전문",
+  contract_agreement: "계약서 본문",
+  general_conditions: "일반 조건",
+  particular_conditions: "특수 조건",
+  conditions_of_contract: "계약 조건",
+  commercial_terms: "상업 조건",
+  definitions: "정의 조항",
+  letter_of_acceptance: "수락 서한",
+  technical_specifications: "기술 시방서",
+  appendices: "부속서",
+  toc: "목차",
+  cover_page: "표지",
+  drawing_list: "도면 목록",
+  form_of_tender: "입찰 서식",
+  bill_of_quantities: "물량내역서",
+};
+
+export const ZONE_ORDER: string[] = [
+  "preamble",
+  "contract_agreement",
+  "general_conditions",
+  "particular_conditions",
+  "conditions_of_contract",
+  "commercial_terms",
+  "definitions",
+  "letter_of_acceptance",
+  "technical_specifications",
+  "appendices",
+  "toc",
+  "cover_page",
+  "drawing_list",
+  "form_of_tender",
+  "bill_of_quantities",
+];
+
+export const ANALYSIS_TARGET_ZONES = new Set([
+  "contract_agreement",
+  "general_conditions",
+  "particular_conditions",
+  "conditions_of_contract",
+  "commercial_terms",
+  "definitions",
+  "letter_of_acceptance",
+]);
+
 interface PartPattern {
   key: string;
   isAnalysisTarget: boolean;
@@ -105,87 +155,6 @@ export interface DocumentZoneInfo {
   startPage: number;
   endPage: number;
   blocks: LayoutBlock[];
-}
-
-/**
- * Segment blocks into named document zones based on heading detection.
- * Returns zones in document order.
- */
-export function segmentZones(blocks: LayoutBlock[]): DocumentZoneInfo[] {
-  const zones: DocumentZoneInfo[] = [];
-  let currentZone: DocumentZoneInfo | null = null;
-
-  // Compute global font baseline (median of all block avg font sizes)
-  const fontVals = blocks
-    .map((b) => b.avgFontSize)
-    .filter((f) => f > 0)
-    .sort((a, b) => a - b);
-  const globalFontBaseline =
-    fontVals.length ? fontVals[Math.floor(fontVals.length / 2)] : 0;
-
-  const flushCurrent = () => {
-    if (currentZone && currentZone.blocks.length > 0) {
-      zones.push(currentZone);
-    }
-  };
-
-  for (const block of blocks) {
-    if (block.blockType === "heading") {
-      const match = detectDocumentPart(block.text, {
-        isHeadingLike: true,
-        boldRatio: block.boldLineRatio,
-        avgFontSize: block.avgFontSize,
-        globalFontBaseline,
-        upperRatioHint: block.upperRatio,
-      });
-
-      if (match) {
-        flushCurrent();
-        currentZone = {
-          key: match.key,
-          title: block.text.trim(),
-          isAnalysisTarget: match.isAnalysisTarget,
-          startPage: block.page + 1, // convert to 1-indexed
-          endPage: block.page + 1,
-          blocks: [block],
-        };
-        continue;
-      }
-    }
-
-    if (currentZone) {
-      currentZone.blocks.push(block);
-      currentZone.endPage = Math.max(currentZone.endPage, block.page + 1);
-    } else {
-      // Content before first recognized zone → treat as contract_body
-      currentZone = {
-        key: "contract_body",
-        title: "Contract Body",
-        isAnalysisTarget: true,
-        startPage: block.page + 1,
-        endPage: block.page + 1,
-        blocks: [block],
-      };
-    }
-  }
-
-  flushCurrent();
-
-  // If no zones detected at all, return single contract_body zone
-  if (!zones.length && blocks.length) {
-    return [
-      {
-        key: "contract_body",
-        title: "Contract Body",
-        isAnalysisTarget: true,
-        startPage: blocks[0].page + 1,
-        endPage: blocks[blocks.length - 1].page + 1,
-        blocks,
-      },
-    ];
-  }
-
-  return zones;
 }
 
 /**

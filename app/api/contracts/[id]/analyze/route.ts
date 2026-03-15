@@ -50,10 +50,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     .eq("id", contractId);
 
   try {
-    const { data: clauses } = await supabase
+    // preamble 등 비분석 zone의 clause는 LLM 분석에서 제외 (쿼터 절약)
+    const NON_ANALYSIS_ZONE_KEYS = ["preamble", "cover_page", "toc"];
+    const { data: allClauses } = await supabase
       .from("clauses")
-      .select("id, text")
-      .eq("contract_id", contractId);
+      .select("id, text, zone_key")
+      .eq("contract_id", contractId)
+      .order("sort_order");
+    const clauses = (allClauses ?? []).filter(
+      (c) => !c.zone_key || !NON_ANALYSIS_ZONE_KEYS.includes(c.zone_key)
+    );
 
     if (!clauses?.length) {
       await supabase
@@ -76,8 +82,26 @@ export async function POST(req: NextRequest, { params }: Params) {
     const existingIds = new Set((existing ?? []).map((r) => r.clause_id));
     const toAnalyze = clauses.filter((c) => !existingIds.has(c.id));
 
+    // 분석 루프 최대 허용 시간 (조항당 분석 + 6s 대기 고려)
+    const LOOP_TIMEOUT_MS = 270_000; // 4.5분
+    const loopStart = Date.now();
+
     let analyzed = 0;
     for (const clause of toAnalyze) {
+      // 루프 타임아웃: partial로 저장 후 종료
+      if (Date.now() - loopStart > LOOP_TIMEOUT_MS) {
+        await supabase
+          .from("contracts")
+          .update({ status: "partial", updated_at: new Date().toISOString() })
+          .eq("id", contractId);
+        return NextResponse.json({
+          ok: true,
+          contractId,
+          analyzed,
+          total: clauses.length,
+          message: "처리 시간 초과로 일부만 분석되었습니다.",
+        });
+      }
       try {
         const row = await analyzeClauseForDb(
           clause.id,

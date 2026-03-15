@@ -2,7 +2,7 @@
 name: test-runner
 description: "Use this agent when you need to run the project's test suite, analyze test results, and identify problems or failures in the Contract Risk Review project. Invoke this agent after writing new code, refactoring existing code, or when you suspect something may be broken.\\n\\n<example>\\nContext: The user has just modified lib/docling-adapter.ts to fix a timeout issue.\\nuser: \"I updated the retry logic in docling-adapter.ts. Can you check if everything still works?\"\\nassistant: \"I'll use the contract-test-runner agent to run the tests and check for any issues introduced by the change.\"\\n<commentary>\\nSince code was modified, launch the contract-test-runner agent to verify the tests pass and nothing is broken.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: The user wants to verify the full test suite after a series of changes.\\nuser: \"We've made a lot of changes today. Let's make sure everything is still working.\"\\nassistant: \"Let me launch the contract-test-runner agent to run all tests and report on any failures or issues.\"\\n<commentary>\\nThe user wants a full test run. Use the contract-test-runner agent to execute and analyze the test suite.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: A new feature was added to the upload pipeline.\\nuser: \"I just added error handling for DOCLING_PARSE_FAILED in app/api/contracts/route.ts\"\\nassistant: \"Great. I'll now use the contract-test-runner agent to run the tests and make sure the new error handling works correctly.\"\\n<commentary>\\nAfter writing new code, proactively launch the contract-test-runner agent to validate the implementation.\\n</commentary>\\n</example>"
 tools: Glob, Grep, Read, WebFetch, WebSearch, Bash, Skill
-model: haiku
+model: inherit
 color: green
 ---
 
@@ -107,7 +107,7 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `D:\coding\contract risk\.claude\agent-memory\contract-test-runner\`. Its contents persist across conversations.
+You have a persistent Persistent Agent Memory directory at `.claude/agent-memory/contract-test-runner/`. Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -142,7 +142,7 @@ Your MEMORY.md is currently empty. When you notice a pattern worth preserving ac
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `D:\coding\contract risk\.claude\agent-memory\test-runner\`. Its contents persist across conversations.
+You have a persistent Persistent Agent Memory directory at `.claude/agent-memory/test-runner/`. Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 

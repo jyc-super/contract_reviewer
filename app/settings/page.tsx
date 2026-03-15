@@ -29,7 +29,28 @@ export default function SettingsPage() {
   const [quota, setQuota] = useState<QuotaRes | null>(null);
   const [loading, setLoading] = useState(true);
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // BUG-16: helpOpen state로 제어하여 button으로 전환
+  const [helpOpen, setHelpOpen] = useState(false);
   const helpGemini = useRef<HTMLDivElement>(null);
+
+  // BUG-05: load를 useEffect 내부로 이동하고 fetch에 AbortController 추가
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    Promise.all([
+      fetch("/api/settings/status", { signal: controller.signal }).then((r) => r.json()),
+      fetch("/api/quota", { signal: controller.signal }).then((r) => r.json()),
+    ])
+      .then(([s, q]) => {
+        setStatus(s as StatusRes);
+        setQuota(q as QuotaRes);
+      })
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === "AbortError") return;
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -45,12 +66,9 @@ export default function SettingsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
+  // BUG-16: state 기반 토글로 전환
   const toggleHelp = () => {
-    helpGemini.current?.classList.toggle("open");
+    setHelpOpen((prev) => !prev);
   };
 
   const testConnection = () => {
@@ -175,10 +193,17 @@ export default function SettingsPage() {
                   {testMsg.text}
                 </div>
               )}
-              <div className="help-toggle" onClick={toggleHelp}>
-                📖 API 키 발급 방법 (3단계, 2분) ▾
-              </div>
-              <div ref={helpGemini} className="help-box" id="help-gemini">
+              {/* BUG-16: div onClick → button으로 변경, aria-expanded 추가 */}
+              <button
+                type="button"
+                className="help-toggle"
+                onClick={toggleHelp}
+                aria-expanded={helpOpen}
+                aria-controls="help-gemini"
+              >
+                📖 API 키 발급 방법 (3단계, 2분) {helpOpen ? "▴" : "▾"}
+              </button>
+              <div ref={helpGemini} className={`help-box${helpOpen ? " open" : ""}`} id="help-gemini">
                 <ol>
                   <li>
                     <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-blue)" }}>

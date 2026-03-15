@@ -8,10 +8,12 @@ export interface QualityCheckResult {
 
 function ruleBasedCheck(clauses: Clause[]): boolean {
   const count = clauses.length;
-  if (count < 3 || count > 500) return true;
+  // Lower bound 1: accommodates LOI and other short-form contracts.
+  // Upper bound 1500: covers FIDIC omnibus contracts (500+ clauses per volume).
+  if (count < 1 || count > 1500) return true;
 
   for (const clause of clauses) {
-    if (clause.text.trim().length < 20) return true;
+    if (clause.text.trim().length < 100) return true;
     if (clause.flags?.includes("needs_review")) return true;
   }
   return false;

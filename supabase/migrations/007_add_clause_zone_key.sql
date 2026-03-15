@@ -1,0 +1,2 @@
+ALTER TABLE public.clauses
+  ADD COLUMN IF NOT EXISTS zone_key VARCHAR;

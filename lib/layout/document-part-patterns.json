@@ -5,7 +5,11 @@
       "isAnalysisTarget": true,
       "patterns": [
         "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?contract\\s+agreement\\b",
-        "^\\s*this\\s+contract\\s+agreement\\b"
+        "^\\s*this\\s+contract\\s+agreement\\b",
+        "^\\s*epc\\s+contract\\s+agreement\\b",
+        "^\\s*agreement\\s*$",
+        "^\\s*계\\s*약\\s*서\\s*$",
+        "^\\s*(?:공사|용역|물품|도급|하도급)?\\s*계약서\\s*$"
       ]
     },
     {
@@ -16,7 +20,10 @@
         "^\\s*gc\\b.*\\bgeneral\\s+conditions\\b",
         "^\\s*book\\s*(?:ii|2)\\b.*\\bgeneral\\s+conditions\\b",
         "^\\s*section\\s*[a-z]\\b.*\\bgeneral\\s+conditions\\b",
-        "^\\s*general\\s+provisions\\s*$"
+        "^\\s*general\\s+provisions\\s*$",
+        "^\\s*\\d+\\s+general\\s+provisions\\b",
+        "^\\s*일\\s*반\\s*(?:사항|조건|조항)\\s*$",
+        "^\\s*공\\s*통\\s*(?:사항|조건|조항)\\s*$"
       ]
     },
     {
@@ -27,15 +34,20 @@
         "^\\s*special\\s+conditions(?:\\s+of\\s+contract)?\\b",
         "^\\s*pc\\b.*\\bparticular\\s+conditions\\b",
         "^\\s*book\\s*(?:iii|3)\\b.*\\bparticular\\s+conditions\\b",
-        "^\\s*section\\s*[b-z]\\b.*\\bparticular\\s+conditions\\b"
+        "^\\s*section\\s*[b-z]\\b.*\\bparticular\\s+conditions\\b",
+        "^\\s*특\\s*수\\s*(?:사항|조건|조항)\\s*$",
+        "^\\s*특\\s*별\\s*(?:사항|조건|조항)\\s*$"
       ]
     },
     {
       "key": "conditions_of_contract",
       "isAnalysisTarget": true,
       "patterns": [
-        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?conditions\\s+of\\s+contract\\b",
-        "^\\s*(?:fidic\\s*)?conditions\\b"
+        "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?conditions\\s+of\\s+(?:contract|subcontract)\\b",
+        "^\\s*\\d+\\s+conditions\\s+of\\s+(?:contract|subcontract)\\b",
+        "^\\s*fidic\\s+conditions\\s+of\\s+(?:contract|subcontract)\\b",
+        "^\\s*conditions\\s*$",
+        "^\\s*계약\\s*(?:일반)?\\s*조건\\s*$"
       ]
     },
     {
@@ -43,6 +55,7 @@
       "isAnalysisTarget": false,
       "patterns": [
         "^\\s*(?:part\\s+[ivx\\d]+\\s*[-:]\\s*)?(?:technical\\s+)?specifications?\\b",
+        "^\\s*\\d+\\s+(?:technical\\s+)?specifications?\\b",
         "^\\s*employer'?s\\s+requirements\\b",
         "^\\s*owner'?s\\s+requirements\\b"
       ]
@@ -71,6 +84,7 @@
       "isAnalysisTarget": true,
       "patterns": [
         "^\\s*(?:\\d+(?:\\.\\d+)*)\\s*definitions\\b",
+        "^\\s*\\d+\\s+definitions\\b",
         "^\\s*definitions\\b"
       ]
     },
@@ -97,6 +111,29 @@
       "patterns": [
         "^\\s*(?:list\\s+of\\s+)?drawings?\\b",
         "^\\s*drawing\\s+(?:register|schedule|list)\\b"
+      ]
+    },
+    {
+      "key": "form_of_tender",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*form\\s+of\\s+tender\\b",
+        "^\\s*tender\\s+form\\b"
+      ]
+    },
+    {
+      "key": "letter_of_acceptance",
+      "isAnalysisTarget": true,
+      "patterns": [
+        "^\\s*letter\\s+of\\s+(?:acceptance|award|intent)\\b"
+      ]
+    },
+    {
+      "key": "bill_of_quantities",
+      "isAnalysisTarget": false,
+      "patterns": [
+        "^\\s*bill\\s+of\\s+quantities\\b",
+        "^\\s*(?:schedule\\s+of\\s+)?rates?\\s+and\\s+prices?\\b"
       ]
     }
   ]

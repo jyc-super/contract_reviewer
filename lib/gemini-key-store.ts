@@ -4,6 +4,44 @@ import { join } from "node:path";
 import { getAdminSupabaseClientIfAvailable } from "./supabase/admin";
 import * as logger from "./logger";
 
+// ── .env.local 헬퍼 ─────────────────────────────────────────────────────────
+function getEnvLocalPath(): string {
+  return join(process.cwd(), ".env.local");
+}
+
+/** .env.local 파일에서 특정 키의 값을 읽거나, 키를 추가/업데이트합니다. */
+function upsertEnvLocal(key: string, value: string): void {
+  const filePath = getEnvLocalPath();
+  let lines: string[] = [];
+  if (existsSync(filePath)) {
+    lines = readFileSync(filePath, "utf8").split(/\r?\n/);
+  }
+  const prefix = `${key}=`;
+  const idx = lines.findIndex((l) => l.startsWith(prefix));
+  if (idx >= 0) {
+    lines[idx] = `${prefix}${value}`;
+  } else {
+    // 빈 줄 뒤에 추가
+    if (lines.length > 0 && lines[lines.length - 1]!.trim() !== "") {
+      lines.push("");
+    }
+    lines.push(`${prefix}${value}`);
+  }
+  writeFileSync(filePath, lines.join("\n"), "utf8");
+}
+
+/** .env.local에서 특정 키 라인을 제거합니다. */
+function removeFromEnvLocal(key: string): void {
+  const filePath = getEnvLocalPath();
+  if (!existsSync(filePath)) return;
+  const lines = readFileSync(filePath, "utf8").split(/\r?\n/);
+  const prefix = `${key}=`;
+  const filtered = lines.filter((l) => !l.startsWith(prefix));
+  if (filtered.length !== lines.length) {
+    writeFileSync(filePath, filtered.join("\n"), "utf8");
+  }
+}
+
 const ALG = "aes-256-gcm";
 const KEY_LEN = 32;
 const IV_LEN = 16;
@@ -67,10 +105,33 @@ export function decryptGeminiKey(blob: string): string {
   return decipher.update(cipher) + decipher.final("utf8");
 }
 
-/** 저장된 Gemini API 키 반환. 없거나 복호화 실패 시 null. env 우선, 다음 DB, 마지막 로컬 파일. */
+/** 저장된 Gemini API 키 반환. 없거나 복호화 실패 시 null. env 우선 → .env.local 직접 읽기 → 암호화 파일 → DB. */
 export async function getStoredGeminiKey(): Promise<string | null> {
   const fromEnv = process.env.GEMINI_API_KEY;
   if (fromEnv?.trim()) return fromEnv.trim();
+
+  // .env.local에서 직접 읽기 (현재 세션에서 저장 후 재시작 전에도 인식)
+  try {
+    const envPath = getEnvLocalPath();
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, "utf8");
+      const match = content.match(/^GEMINI_API_KEY=(.+)$/m);
+      if (match?.[1]?.trim()) return match[1].trim();
+    }
+  } catch {
+    // fall through
+  }
+
+  // 암호화 파일
+  const filePath = getKeyFilePath();
+  if (existsSync(filePath) && hasEncryptionKey()) {
+    try {
+      const blob = readFileSync(filePath, "utf8");
+      return decryptGeminiKey(blob);
+    } catch {
+      // fall through to DB
+    }
+  }
 
   const supabase = getAdminSupabaseClientIfAvailable();
   if (supabase) {
@@ -83,17 +144,7 @@ export async function getStoredGeminiKey(): Promise<string | null> {
 
       if (!error && data?.value_encrypted) return decryptGeminiKey(data.value_encrypted);
     } catch {
-      // fall through to file
-    }
-  }
-
-  const filePath = getKeyFilePath();
-  if (existsSync(filePath) && hasEncryptionKey()) {
-    try {
-      const blob = readFileSync(filePath, "utf8");
-      return decryptGeminiKey(blob);
-    } catch {
-      return null;
+      // fall through
     }
   }
 
@@ -110,15 +161,15 @@ export async function setStoredGeminiKey(apiKey: string): Promise<void> {
   }
   const encrypted = encryptGeminiKey(apiKey.trim());
 
-  const supabase = getAdminSupabaseClientIfAvailable();
-  if (supabase) {
-    const { error } = await supabase
-      .from("app_settings")
-      .upsert({ key: SETTINGS_KEY, value_encrypted: encrypted, updated_at: new Date().toISOString() }, { onConflict: "key" });
-    if (!error) return;
-    // DB 실패 시(테이블 없음, RLS 등) 로컬 파일로 대체 저장
+  // 1) .env.local에 평문 저장 (Next.js 재시작 시 process.env로 자동 로드)
+  try {
+    upsertEnvLocal("GEMINI_API_KEY", apiKey.trim());
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    logger.warn(".env.local에 GEMINI_API_KEY를 저장하지 못했습니다: " + detail);
   }
 
+  // 2) 암호화 파일에 저장 (현재 세션에서 즉시 사용 + 백업)
   const filePath = getKeyFilePath();
   const dir = join(process.cwd(), "data");
   try {
@@ -126,11 +177,30 @@ export async function setStoredGeminiKey(apiKey: string): Promise<void> {
     writeFileSync(filePath, encrypted, "utf8");
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
-    throw new Error("로컬 파일에 API 키를 저장하지 못했습니다. " + detail + (supabase ? " (DB 저장도 실패했습니다.)" : ""));
+    logger.error("로컬 파일에 API 키를 저장하지 못했습니다: " + detail);
+  }
+
+  // Supabase에도 저장 (있으면)
+  const supabase = getAdminSupabaseClientIfAvailable();
+  if (supabase) {
+    try {
+      await supabase
+        .from("app_settings")
+        .upsert({ key: SETTINGS_KEY, value_encrypted: encrypted, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    } catch {
+      // DB 실패 시 로컬 파일에 이미 저장되어 있으므로 무시
+    }
+  }
+
+  // 로컬 파일 또는 .env.local 중 하나라도 저장되었는지 확인
+  const envLocalHasKey = existsSync(getEnvLocalPath()) &&
+    readFileSync(getEnvLocalPath(), "utf8").includes("GEMINI_API_KEY=");
+  if (!existsSync(filePath) && !envLocalHasKey) {
+    throw new Error("API 키 저장에 실패했습니다. 로컬 파일과 DB 모두 저장할 수 없습니다.");
   }
 }
 
-/** 저장된 키 삭제 (유효하지 않을 때 재입력 유도용). DB와 로컬 파일 둘 다 삭제. */
+/** 저장된 키 삭제 (유효하지 않을 때 재입력 유도용). DB, 로컬 파일, .env.local 모두 삭제. */
 export async function clearStoredGeminiKey(): Promise<void> {
   const supabase = getAdminSupabaseClientIfAvailable();
   if (supabase) {
@@ -142,12 +212,32 @@ export async function clearStoredGeminiKey(): Promise<void> {
   } catch {
     // ignore
   }
+  try {
+    removeFromEnvLocal("GEMINI_API_KEY");
+  } catch {
+    // ignore
+  }
 }
 
-/** UI에서 사용: 키가 설정되어 있는지. (env 또는 DB 또는 로컬 파일) */
+/** UI에서 사용: 키가 설정되어 있는지. (env → .env.local 직접 → 암호화 파일 → DB) */
 export async function isGeminiKeyConfigured(): Promise<boolean> {
   if (process.env.GEMINI_API_KEY?.trim()) return true;
+
+  // .env.local 직접 체크 (현재 세션에서 저장 후 재시작 전에도 인식)
+  try {
+    const envPath = getEnvLocalPath();
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, "utf8");
+      if (/^GEMINI_API_KEY=.+$/m.test(content)) return true;
+    }
+  } catch {
+    // fall through
+  }
+
   if (!hasEncryptionKey()) return false;
+
+  // 암호화 파일 체크
+  if (existsSync(getKeyFilePath())) return true;
 
   const supabase = getAdminSupabaseClientIfAvailable();
   if (supabase) {
@@ -159,5 +249,5 @@ export async function isGeminiKeyConfigured(): Promise<boolean> {
     }
   }
 
-  return existsSync(getKeyFilePath());
+  return false;
 }

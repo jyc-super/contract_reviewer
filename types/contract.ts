@@ -1,7 +1,8 @@
 export type ContractStatus =
   | "uploading"
-  | "filtering"
   | "parsing"
+  | "quality_checking"
+  | "filtering"
   | "analyzing"
   | "ready"
   | "partial"

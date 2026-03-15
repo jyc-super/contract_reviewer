@@ -1,22 +1,19 @@
 /**
  * Ensures .env.local has Supabase vars for local dev.
- * only missing keys so existing .env.local is never overwritten.
+ * - WSL2 Docker Desktop: auto-detects WSL eth0 IP (changes on reboot)
+ * - Always refreshes NEXT_PUBLIC_SUPABASE_URL with reachable host
+ * - Only adds missing keys (never overwrites existing keys)
  * Exit code 0 even on failure so run.bat continues.
  */
 
-const { execSync, spawnSync } = require("child_process");
+const { spawnSync } = require("child_process");
 const fs = require("fs");
+const net = require("net");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const ENV_PATH = path.join(ROOT, ".env.local");
-
-
-const TARGET_VARS = {
-  NEXT_PUBLIC_SUPABASE_URL: null,
-  SUPABASE_SERVICE_ROLE_KEY: null,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: null,
-};
+const SUPABASE_PORT = 54321;
 
 function parseEnvFile(filePath) {
   const out = {};
@@ -34,20 +31,75 @@ function writeEnvFile(filePath, vars) {
   fs.writeFileSync(filePath, lines.join("\n") + "\n", "utf8");
 }
 
-function getSupabaseValues() {
+/**
+ * TCP connect test — returns true if host:port responds within timeoutMs.
+ */
+function tcpReachable(host, port, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const sock = new net.Socket();
+    const timer = setTimeout(() => { sock.destroy(); resolve(false); }, timeoutMs);
+    sock.once("connect", () => { clearTimeout(timer); sock.destroy(); resolve(true); });
+    sock.once("error", () => { clearTimeout(timer); sock.destroy(); resolve(false); });
+    sock.connect(port, host);
+  });
+}
+
+/**
+ * Detect the correct Supabase host for this machine.
+ *
+ * On Windows with Docker Desktop WSL2 backend, 127.0.0.1 port-forwarding
+ * is broken — TCP SYN is accepted but traffic is not relayed.
+ * The workaround is to use the WSL2 distro's eth0 IP directly.
+ *
+ * Detection order:
+ *   1. WSL2 eth0 IP (wsl -d docker-desktop) → test TCP reachability
+ *   2. 127.0.0.1 (standard Docker / native)  → test TCP reachability
+ *   3. null (Docker not running or Supabase not started)
+ */
+async function detectSupabaseHost() {
+  const candidates = [];
+
+  // Try WSL2 Docker Desktop IP (Windows only)
+  if (process.platform === "win32") {
+    try {
+      const r = spawnSync("wsl", ["-d", "docker-desktop", "ip", "addr", "show", "eth0"], {
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      const stdout = r.stdout || "";
+      const m = stdout.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
+      if (m) candidates.push(m[1]);
+    } catch { /* WSL not available */ }
+  }
+
+  // Always try localhost as fallback
+  candidates.push("127.0.0.1");
+
+  for (const host of candidates) {
+    const ok = await tcpReachable(host, SUPABASE_PORT, 2000);
+    if (ok) {
+      console.log(`[env] Supabase reachable at ${host}:${SUPABASE_PORT}`);
+      return host;
+    }
+  }
+
+  console.log("[env] Supabase not reachable on any candidate host");
+  return null;
+}
+
+function getSupabaseKeys() {
   const tryJson = (str) => {
     if (!str) return null;
     try {
       const data = JSON.parse(str);
-      const flat = typeof data === "object" && data !== null ? { ...data, ...(data.project || {}), ...(data.config || {}) } : {};
+      const flat = typeof data === "object" && data !== null
+        ? { ...data, ...(data.project || {}), ...(data.config || {}) }
+        : {};
       return {
-        url: flat.API_URL ?? flat.api_url ?? flat.ApiUrl,
-        serviceRoleKey: flat.SERVICE_ROLE_KEY ?? flat.service_role_key,
-        anonKey: flat.ANON_KEY ?? flat.anon_key,
+        serviceRoleKey: flat.SERVICE_ROLE_KEY ?? flat.service_role_key ?? null,
+        anonKey: flat.ANON_KEY ?? flat.anon_key ?? null,
       };
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   };
 
   const tryEnv = (str) => {
@@ -57,70 +109,76 @@ function getSupabaseValues() {
       const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
       if (m) out[m[1].trim()] = m[2].trim();
     }
-    const url = out.API_URL ?? out.SUPABASE_URL;
-    if (!url) return null;
     return {
-      url,
       serviceRoleKey: out.SERVICE_ROLE_KEY || null,
       anonKey: out.ANON_KEY || null,
     };
   };
 
-  const runJson = () => {
-    const r = spawnSync("npx supabase status -o json", [], {
-      cwd: ROOT,
-      encoding: "utf8",
-      maxBuffer: 2 * 1024 * 1024,
-      shell: true,
+  const run = (fmt) => {
+    const r = spawnSync(`npx supabase status -o ${fmt}`, [], {
+      cwd: ROOT, encoding: "utf8", maxBuffer: 2 * 1024 * 1024, shell: true,
     });
-    return { stdout: (r.stdout || "").trim(), stderr: (r.stderr || "").trim(), status: r.status, error: r.error ? String(r.error) : null };
+    return (r.stdout || "").trim() || (r.stderr || "").trim();
   };
 
-  const runEnv = () => {
-    const r = spawnSync("npx supabase status -o env", [], {
-      cwd: ROOT,
-      encoding: "utf8",
-      maxBuffer: 2 * 1024 * 1024,
-      shell: true,
-    });
-    return { stdout: (r.stdout || "").trim(), stderr: (r.stderr || "").trim(), status: r.status, error: r.error ? String(r.error) : null };
-  };
-
-  const jsonRun = runJson();
-  const stdout = jsonRun.stdout || jsonRun.stderr;
-  let result = tryJson(stdout);
-  if (result?.url) return result;
-  const envRun = runEnv();
-  const envOut = envRun.stdout || envRun.stderr;
-  result = tryEnv(envOut);
-  if (result?.url) return result;
+  let result = tryJson(run("json"));
+  if (result?.serviceRoleKey) return result;
+  result = tryEnv(run("env"));
+  if (result?.serviceRoleKey) return result;
   return null;
 }
 
-function main() {
-const current = parseEnvFile(ENV_PATH);
-  const toAdd = {};
-  const values = getSupabaseValues();
-if (values?.url) {
-    if (!current.NEXT_PUBLIC_SUPABASE_URL) toAdd.NEXT_PUBLIC_SUPABASE_URL = values.url;
-    if (values.serviceRoleKey && !current.SUPABASE_SERVICE_ROLE_KEY)
-      toAdd.SUPABASE_SERVICE_ROLE_KEY = values.serviceRoleKey;
-    if (values.anonKey && !current.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      toAdd.NEXT_PUBLIC_SUPABASE_ANON_KEY = values.anonKey;
+async function main() {
+  const current = parseEnvFile(ENV_PATH);
+  const toUpdate = {};
+
+  // 1. Always refresh Supabase URL (WSL2 IP can change on reboot)
+  const host = await detectSupabaseHost();
+  if (host) {
+    const newUrl = `http://${host}:${SUPABASE_PORT}`;
+    const oldUrl = current.NEXT_PUBLIC_SUPABASE_URL;
+    if (oldUrl !== newUrl) {
+      toUpdate.NEXT_PUBLIC_SUPABASE_URL = newUrl;
+      if (oldUrl) {
+        console.log(`[env] Supabase URL updated: ${oldUrl} → ${newUrl}`);
+      } else {
+        console.log(`[env] Supabase URL set: ${newUrl}`);
+      }
+    } else {
+      console.log("[env] Supabase URL unchanged");
+    }
   }
 
-if (Object.keys(toAdd).length === 0) {
+  // 2. Fill missing keys (only if not already set)
+  const hasKey = !!current.SUPABASE_SERVICE_ROLE_KEY;
+  if (!hasKey) {
+    const keys = getSupabaseKeys();
+    if (keys?.serviceRoleKey) {
+      toUpdate.SUPABASE_SERVICE_ROLE_KEY = keys.serviceRoleKey;
+      console.log("[env] SUPABASE_SERVICE_ROLE_KEY set from supabase status");
+    }
+    if (keys?.anonKey && !current.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      toUpdate.NEXT_PUBLIC_SUPABASE_ANON_KEY = keys.anonKey;
+      console.log("[env] NEXT_PUBLIC_SUPABASE_ANON_KEY set from supabase status");
+    }
+  }
+
+  if (Object.keys(toUpdate).length === 0) {
+    console.log("[env] No changes needed");
     process.exit(0);
     return;
   }
 
-  const merged = { ...current, ...toAdd };
-writeEnvFile(ENV_PATH, merged);
+  const merged = { ...current, ...toUpdate };
+  writeEnvFile(ENV_PATH, merged);
+  console.log("[env] .env.local updated");
   process.exit(0);
 }
 
 try {
   main();
 } catch (e) {
+  console.log("[env] Error:", e.message);
   process.exit(0);
 }

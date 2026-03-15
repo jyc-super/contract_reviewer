@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 interface FileDropzoneProps {
   onFileSelected?: (file: File) => void;
@@ -9,6 +9,7 @@ interface FileDropzoneProps {
 
 export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleClick = () => {
     if (disabled) return;
@@ -29,6 +30,7 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(false);
     if (disabled) return;
     const file = e.dataTransfer.files?.[0];
     if (file && onFileSelected) {
@@ -47,6 +49,16 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (!disabled) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only reset when leaving the dropzone itself, not when entering a child
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -60,13 +72,16 @@ export function FileDropzone({ onFileSelected, disabled }: FileDropzoneProps) {
   return (
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
+      aria-label="계약서 파일 업로드"
+      aria-disabled={disabled}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
-      className="upload-zone"
+      onDragLeave={handleDragLeave}
+      className={`upload-zone${isDragging ? " upload-zone--dragging" : ""}${disabled ? " upload-zone--disabled" : ""}`}
     >
       <input
         ref={inputRef}

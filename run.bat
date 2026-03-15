@@ -39,7 +39,21 @@ if errorlevel 1 (
 echo/
 
 :firewall_done
+REM ── npm install 캐싱 ────────────────────────────────────────────────────────
+REM  package-lock.json 수정 시간을 .npm.check에 저장하여 변경 없으면 스킵.
+REM  node_modules 자체가 없으면 무조건 설치.
+set "NPM_NEED_INSTALL=0"
 if not exist "node_modules\next" (
+  set "NPM_NEED_INSTALL=1"
+) else if not exist ".npm.check" (
+  set "NPM_NEED_INSTALL=1"
+) else (
+  REM package-lock.json 수정 시간과 캐시 비교
+  for %%F in (package-lock.json) do set "LOCK_TIME=%%~tF"
+  set /p LAST_TIME=<".npm.check"
+  if not "!LOCK_TIME!"=="!LAST_TIME!" set "NPM_NEED_INSTALL=1"
+)
+if "%NPM_NEED_INSTALL%"=="1" (
   echo [Setup] Installing npm dependencies...
   call npm install
   if errorlevel 1 (
@@ -47,6 +61,9 @@ if not exist "node_modules\next" (
     pause
     exit /b 1
   )
+  for %%F in (package-lock.json) do echo %%~tF> ".npm.check"
+) else (
+  echo [Setup] npm dependencies up-to-date
 )
 
 set "DOCKER_OK=0"
@@ -99,12 +116,19 @@ if "%DOCKER_OK%"=="1" (
     )
   )
 
-  REM [OPT] Supabase가 이미 실행 중이면 npx supabase start를 완전히 건너뜀.
-  REM  npx + CLI 초기화 + Docker 컨테이너 상태 확인 비용(30~120초) 절감.
-  REM  curl --max-time 3 으로 최대 3초 내 응답 없으면 미실행으로 판단.
+  REM [OPT] 2단계 확인: docker ps(빠름) → curl health(확실) → npx start(최후)
   echo [Local] Checking if Supabase is already running...
-  curl -s --max-time 3 http://127.0.0.1:54321/health >nul 2>&1
+  set "SUPA_RUNNING=0"
+
+  REM Step 1: Docker 컨테이너 상태로 빠른 판단
+  docker ps --filter "name=supabase_db" --filter "status=running" --format "{{.Names}}" 2>nul | findstr "supabase" >nul 2>&1
   if not errorlevel 1 (
+    REM Step 2: 컨테이너 실행 중 → health check로 확인 (2초 타임아웃)
+    curl -s --max-time 2 http://127.0.0.1:54321/health >nul 2>&1
+    if not errorlevel 1 set "SUPA_RUNNING=1"
+  )
+
+  if "!SUPA_RUNNING!"=="1" (
     echo [Local] Supabase already running - skipping start
   ) else (
     echo [Local] npx supabase start
@@ -138,115 +162,19 @@ REM  This block is the FALLBACK for DOCLING_AUTO_START=false or when you
 REM  need the sidecar running before npm run dev (e.g. Docker image mode).
 REM  In the default auto-start case, jump straight to starting the dev server.
 REM
-if "%DOCLING_AUTO_START%"=="false" goto :docling_manual
-echo [Docling] Auto-start enabled — instrumentation.ts will start sidecar during npm run dev.
-goto :docling_done
-
-:docling_manual
-REM ── Manual / legacy mode: start sidecar before npm run dev ────────────────
-set "DOCLING_REQUIRED=true"
-set "DOCLING_READY=0"
-set "DOCLING_MODE=none"
-set "WAIT_SECONDS=15"
-
-REM 이미 실행 중인 컨테이너 확인 (docker inspect → 파일 경유로 안정적 파싱)
-docker inspect contract-risk-docling --format "{{.State.Health.Status}}" > "%TEMP%\docling_health.txt" 2>nul
-findstr /b /c:"healthy" "%TEMP%\docling_health.txt" >nul 2>&1
-if not errorlevel 1 set "DOCLING_READY=1"
-type "%TEMP%\docling_health.txt" >> "%RUNLOG%" 2>nul
-echo [Docling] DOCLING_READY=%DOCLING_READY% (initial) >> "%RUNLOG%"
-if "%DOCLING_READY%"=="1" (
-  echo [Docling] Sidecar already running ^(docker healthy^)
-  set "DOCLING_MODE=existing"
-  goto :docling_ready_check
+if "%DOCLING_AUTO_START%"=="false" (
+  echo [Docling] Auto-start disabled. Ensure sidecar is running: scripts\start_sidecar.bat
+  echo [Docling] Upload will fail with DOCLING_UNAVAILABLE if sidecar is not reachable.
+) else (
+  echo [Docling] Auto-start enabled — instrumentation.ts will start sidecar during npm run dev.
 )
-
-if "%DOCKER_OK%"=="1" goto :docling_docker_manual
-goto :docling_python_manual
-
-:docling_docker_manual
-echo [Docling] Docker available - checking for pre-built image...
-docker image inspect contract-risk-docling:local >nul 2>&1
-if errorlevel 1 (
-  echo [Docling] Image not found - skipping Docker build, using Python venv instead.
-  goto :docling_python_manual
-)
-docker compose -f docker-compose.docling.yml up -d
-if errorlevel 1 (
-  echo [Docling] Docker compose up failed - falling back to Python venv.
-  goto :docling_python_manual
-)
-echo [Docling] Container started. Waiting for health...
-set "DOCLING_MODE=docker"
-set "WAIT_SECONDS=180"
-goto :docling_wait_loop_manual
-
-:docling_python_manual
-python --version >nul 2>&1
-if not errorlevel 1 goto :docling_python_start_manual
-echo [Docling] Neither Docker nor Python found.
-echo [Docling] Upload unavailable. Install Docker Desktop or Python 3.10+.
-goto :docling_ready_check
-
-:docling_python_start_manual
-echo [Docling] Starting Python venv sidecar in background (manual mode)...
-start "Docling Sidecar" /min cmd /c "set DOCLING_PRELOAD_MODEL=false && scripts\start_sidecar.bat"
-set "DOCLING_MODE=python"
-set "WAIT_SECONDS=60"
-echo [Docling] lazy import 모드 — 서버 기동만 확인합니다 (최대 60초).
-
-set "WAIT_COUNT=0"
-:docling_wait_loop_manual
-set /a "WAIT_COUNT+=1"
-if %WAIT_COUNT% GTR %WAIT_SECONDS% goto :docling_ready_check
-
-if "%DOCLING_MODE%"=="docker" (
-  docker inspect contract-risk-docling --format "{{.State.Health.Status}}" > "%TEMP%\docling_health.txt" 2>nul
-  findstr /b /c:"healthy" "%TEMP%\docling_health.txt" >nul 2>&1
-  if not errorlevel 1 set "DOCLING_READY=1"
-)
-if "%DOCLING_MODE%"=="python" (
-  curl -s --max-time 3 http://127.0.0.1:8766/health > "%TEMP%\docling_health.txt" 2>nul
-  findstr /C:"\"status\": \"ok\"" "%TEMP%\docling_health.txt" >nul 2>&1
-  if not errorlevel 1 set "DOCLING_READY=1"
-)
-
-if "%DOCLING_READY%"=="1" goto :docling_ready_check
-set /a "MOD=WAIT_COUNT %% 10"
-if "%MOD%"=="0" echo [Docling] 서버 기동 대기 중... %WAIT_COUNT%/%WAIT_SECONDS%초 경과
-timeout /t 1 /nobreak >nul
-goto :docling_wait_loop_manual
-
-:docling_ready_check
-echo [Docling] At docling_ready: DOCLING_READY=%DOCLING_READY% MODE=%DOCLING_MODE% >> "%RUNLOG%"
-if not "%DOCLING_READY%"=="1" goto :docling_unavailable_manual
-echo [Docling] Ready (mode: %DOCLING_MODE%) - upload parser is available.
-goto :docling_done
-
-:docling_unavailable_manual
-echo.
-echo [ERROR] Docling 사이드카 기동 실패 - %WAIT_SECONDS%초 내에 /health 응답 없음
-if "%DOCLING_MODE%"=="docker" echo [ERROR] 로그 확인: docker logs contract-risk-docling
-if not "%DOCLING_MODE%"=="docker" (
-  echo [ERROR] scripts\start_sidecar.bat 를 별도 창에서 직접 실행하여 오류를 확인하세요.
-  echo [ERROR] Python/venv 문제라면: .venv\Scripts\pip install -r scripts\requirements-docling.txt
-)
-echo [ERROR] 문제 해결 후 run.bat을 다시 실행하세요.
-echo.
-pause
-exit /b 1
 
 :docling_done
 echo/
 
 REM ── 포트 3000 점유 프로세스 정리 ────────────────────────────────────────────
-REM [OPT] PowerShell 대신 순수 CMD(netstat + for + taskkill)로 처리.
-REM  PowerShell.exe 프로세스 초기화 hang(10~30초) 완전 제거.
-REM  netstat -ano 는 즉시 응답하며, findstr로 LISTENING 상태만 필터링.
-for /f "tokens=5" %%P in ('netstat -ano 2^>nul ^| findstr /C:" LISTENING" ^| findstr "\:3000 "') do (
-  echo [Next] Killing process on port 3000 (PID: %%P)
-  taskkill /PID %%P /F >nul 2>&1
-)
+REM  Node.js 스크립트로 처리: 정확한 netstat 파싱 + 포트 해제 대기(최대 3초)
+node scripts\kill-port.js 3000
 
 echo [Next] Reached dev server start >> "%RUNLOG%"
 echo [Next] Starting dev server...

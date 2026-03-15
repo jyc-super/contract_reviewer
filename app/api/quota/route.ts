@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRemaining, type ModelKey } from "../../../lib/quota-manager";
 
+export const dynamic = "force-dynamic";
+
 function formatResetAt(date: Date): string {
   const d = new Date(date);
   const y = d.getFullYear();

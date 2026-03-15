@@ -135,7 +135,7 @@ PDF/DOCX 계약서를 업로드하면 다음을 수행합니다.
   - /parse: PDF/DOCX → sections[] JSON
 - `scripts/start_sidecar.bat`
   - SIDECAR_PORT=8766으로 포트 충돌 체크
-  - venv 경로: `%~dp0..\.venv` (루트 .venv = D:\coding\contract risk\.venv)
+  - venv 경로: `%~dp0..\.venv` (프로젝트 루트의 .venv)
   - Python 미전달 주의: DOCLING_SIDECAR_PORT 환경변수를 명시 설정해야 포트 일치
 - `run.bat` — 전체 스택 기동 (Docker 컨테이너 우선 → Python venv fallback)
   - run.bat에서 8766 포트로 health 체크 수행
@@ -146,7 +146,10 @@ PDF/DOCX 계약서를 업로드하면 다음을 수행합니다.
 
 ```env
 # Supabase (필수 또는 UI 설정으로 대체 가능)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+# 주의: NEXT_PUBLIC_SUPABASE_URL은 scripts/ensure-local-env.js가 자동 설정합니다.
+# Windows Docker Desktop WSL2 환경에서는 127.0.0.1 대신 WSL2 eth0 IP가 자동 감지됩니다.
+# 수동으로 IP를 하드코딩하지 마세요.
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Gemini (UI에서 입력 가능; ENCRYPTION_KEY가 있으면 암호화 저장됨)
@@ -173,6 +176,12 @@ DOCLING_REQUIRED=true
   `DOCLING_SIDECAR_PORT=8766` 환경변수를 함께 지정해야 합니다.
 - `start_sidecar.bat`은 포트 충돌 체크만 8766으로 수행하며, Python 프로세스에
   `DOCLING_SIDECAR_PORT` 환경변수를 자동 전달하지 않습니다.
+
+**Supabase URL 자동 감지:**
+- `scripts/ensure-local-env.js`가 `npm run dev` 실행 시 자동으로 WSL2 Docker Desktop IP를 감지합니다.
+- Windows에서 Docker Desktop이 WSL2 백엔드를 사용하는 경우, `127.0.0.1`로는 Supabase에 접근할 수 없습니다.
+- 스크립트가 `wsl hostname -I`를 실행하여 WSL2 eth0 IP를 얻고, `.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`을 자동 갱신합니다.
+- WSL2가 아닌 환경에서는 기본값 `127.0.0.1`이 유지됩니다.
 
 ---
 
@@ -218,3 +227,5 @@ Supabase 대시보드 또는 CLI에서 순서대로 실행:
 3. **TypeScript strict** — any 타입, strict 우회 금지
 4. **MODEL_CONFIG는 lib/gemini.ts에만** — 모델 ID 하드코딩 금지
 5. **모든 Gemini 호출 전 canCall() 확인** — quota-manager 우회 금지
+6. **절대 경로 사용 금지** — 모든 설정/문서/에이전트 파일에서 `D:\coding\contract risk` 같은 절대 경로 대신 상대 경로(`.venv`, `.claude/agent-memory/...`) 또는 `{프로젝트 루트}` 표기를 사용. 다른 컴퓨터에서도 실행 가능해야 함.
+7. **환경별 설정 자동 감지** — `scripts/ensure-local-env.js`가 매 실행 시 WSL2 Docker Desktop IP를 자동 감지하여 `.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`을 갱신. 수동 IP 하드코딩 금지.

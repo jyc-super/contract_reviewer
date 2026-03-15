@@ -19,11 +19,16 @@ const VERIFY_MODEL_IDS = [
   "gemma-3-4b-it",
 ];
 
-function is503Like(msg: string): boolean {
+function isQuotaOrUnavailable(msg: string): boolean {
   return (
     msg.includes("503") ||
     msg.includes("Service Unavailable") ||
-    msg.includes("high demand")
+    msg.includes("high demand") ||
+    msg.includes("429") ||
+    msg.includes("Too Many Requests") ||
+    msg.includes("quota") ||
+    msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("rate limit")
   );
 }
 
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     const client = new GoogleGenerativeAI(apiKey);
     let lastError: unknown;
-    let all503 = true;
+    let allUnavailable = true;
 
     for (const modelId of VERIFY_MODEL_IDS) {
       try {
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
         await model.generateContent({
           contents: [{ role: "user", parts: [{ text: "Hi" }] }],
         });
-        all503 = false;
+        allUnavailable = false;
         break;
       } catch (e) {
         lastError = e;
@@ -71,18 +76,18 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-        if (!is503Like(msg)) {
+        if (!isQuotaOrUnavailable(msg)) {
           throw e;
         }
       }
     }
 
-    if (all503) {
+    if (allUnavailable) {
       await setStoredGeminiKey(apiKey);
       return NextResponse.json({
         ok: true,
         message:
-          "Gemini 서버가 일시적으로 바쁩니다. 키는 저장되었습니다. 잠시 후 다시 시도해 주세요.",
+          "Gemini API 쿼터가 초과되었거나 서버가 일시적으로 바쁩니다. 키는 저장되었습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
 

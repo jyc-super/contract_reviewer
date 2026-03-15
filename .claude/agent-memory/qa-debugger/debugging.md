@@ -42,7 +42,7 @@ Lazy import 전략으로 `docling_sidecar.py` 재작성 (v1.1 → v1.2):
 Windows Defender에 `.venv` 폴더 제외 추가:
 ```
 Windows 보안 → 바이러스 및 위협 방지 → 설정 관리 → 제외 추가 → 폴더
-→ D:\coding\contract risk\.venv 추가
+→ {프로젝트 루트}\.venv 추가
 ```
 이후에는 DOCLING_PRELOAD_MODEL=true로도 정상 동작.
 

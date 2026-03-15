@@ -16,6 +16,6 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash \"D:/coding/contract risk/.claude/statusline-command.sh\""
+    "command": "bash .claude/statusline-command.sh"
   }
 }

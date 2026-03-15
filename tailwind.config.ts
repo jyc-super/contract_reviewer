@@ -26,6 +26,8 @@ const config: Config = {
         "accent-yellow-dim": "rgba(251,191,36,0.12)",
         "accent-red": "#F87171",
         "accent-red-dim": "rgba(248,113,113,0.12)",
+        "accent-amber": "#FB923C",
+        "accent-amber-dim": "rgba(251,146,60,0.12)",
         "accent-purple": "#A78BFA",
         "accent-purple-dim": "rgba(167,139,250,0.12)",
       },
@@ -35,6 +37,10 @@ const config: Config = {
       },
       borderRadius: {
         lg: "12px",
+      },
+      gridTemplateRows: {
+        "[0fr]": "0fr",
+        "[1fr]": "1fr",
       },
     },
   },

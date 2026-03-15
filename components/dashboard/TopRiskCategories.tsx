@@ -13,7 +13,10 @@ interface TopRiskCategoriesProps {
 }
 
 export function TopRiskCategories({ categories }: TopRiskCategoriesProps) {
+  // BUG-14: categories가 undefined이면 DEFAULT_CATEGORIES를 보여주되,
+  // 명시적으로 빈 배열[]이 전달되면 "데이터 없음" 상태를 표시
   const items = categories ?? DEFAULT_CATEGORIES;
+  const hasData = items.some((cat) => cat.count > 0);
 
   return (
     <div className="card">
@@ -21,23 +24,29 @@ export function TopRiskCategories({ categories }: TopRiskCategoriesProps) {
         <div className="card-title">고위험 카테고리 Top 5</div>
       </div>
       <div className="card-body">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {items.map((cat) => (
-            <div
-              key={cat.name}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: 12 }}>{cat.name}</span>
-              <span className="badge badge-high" style={{ fontSize: 11 }}>
-                {cat.count}건
-              </span>
-            </div>
-          ))}
-        </div>
+        {!hasData ? (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "8px 0" }}>
+            분석된 데이터가 없습니다
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {items.map((cat) => (
+              <div
+                key={cat.name}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 12 }}>{cat.name}</span>
+                <span className="badge badge-high" style={{ fontSize: 11 }}>
+                  {cat.count}건
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

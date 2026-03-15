@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교차참조 UI 디자인 목업</title>
+<style>
+  /* ── 기존 프로젝트 디자인 토큰 ── */
+  :root {
+    --bg-primary: #0F1117;
+    --bg-secondary: #161821;
+    --bg-tertiary: #1C1F2E;
+    --bg-card: #1A1D2B;
+    --bg-hover: #222539;
+    --text-primary: #E8E9ED;
+    --text-secondary: #9496A8;
+    --text-muted: #6B6E82;
+    --accent-blue: #4C8BF5;
+    --accent-blue-dim: rgba(76,139,245,0.15);
+    --accent-green: #34D399;
+    --accent-green-dim: rgba(52,211,153,0.12);
+    --accent-yellow: #FBBF24;
+    --accent-yellow-dim: rgba(251,191,36,0.12);
+    --accent-red: #F87171;
+    --accent-red-dim: rgba(248,113,113,0.12);
+    --accent-amber: #FB923C;
+    --accent-purple: #A78BFA;
+    --accent-emerald: #34D399;
+    --accent-emerald-dim: rgba(52,211,153,0.10);
+    --border: #2A2D3E;
+    --border-light: #353850;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+
+    /* ── 교차참조 전용 토큰 ── */
+    --xref-clause: #4C8BF5;          /* 조항 참조 = accent-blue */
+    --xref-clause-dim: rgba(76,139,245,0.12);
+    --xref-term: #34D399;            /* 정의어 참조 = accent-emerald */
+    --xref-term-dim: rgba(52,211,153,0.10);
+    --xref-unresolved: #6B6E82;      /* 미해결 참조 = text-muted */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 24px;
+  }
+
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+  h2 { font-size: 16px; font-weight: 600; margin: 32px 0 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; color: var(--text-secondary); }
+  p.desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+  .mockup-section { margin-bottom: 48px; }
+
+  /* ── 컴포넌트 스타일 ── */
+
+  /* 1. 조항 카드 (ClauseDocumentItem) */
+  .clause-card {
+    background: var(--bg-card);
+    border-left: 4px solid var(--accent-amber);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0;
+    overflow: hidden;
+  }
+  .clause-header {
+    display: grid;
+    grid-template-columns: 1.5rem 4.5rem 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 20px 8px;
+    cursor: pointer;
+  }
+  .clause-header:hover { background: var(--bg-hover); }
+  .clause-chevron { color: var(--text-muted); font-size: 12px; }
+  .clause-number { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--accent-blue); }
+  .clause-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .clause-badges { display: flex; gap: 8px; align-items: center; margin-left: 8px; }
+
+  .clause-body {
+    padding: 0 20px 16px;
+    padding-left: calc(1.5rem + 4.5rem + 12px + 20px); /* 헤더 그리드 맞춤 */
+    font-size: 13px;
+    line-height: 1.75;
+    color: rgba(232,233,237,0.8);
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: justify;
+  }
+
+  /* 2. 인라인 교차참조 링크 (CrossRefLink) */
+  .xref-clause {
+    color: var(--xref-clause);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  .xref-clause:hover {
+    background: var(--xref-clause-dim);
+    text-decoration-style: solid;
+  }
+
+  .xref-term {
+    color: var(--xref-term);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  .xref-term:hover {
+    background: var(--xref-term-dim);
+    text-decoration-style: solid;
+  }
+
+  .xref-unresolved {
+    color: var(--xref-unresolved);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    cursor: default;
+  }
+
+  /* 3. 호버 프리뷰 (CrossRefPreview) */
+  .hover-preview {
+    position: absolute;
+    width: 340px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 0;
+    z-index: 50;
+    font-size: 13px;
+    overflow: hidden;
+  }
+  .hover-preview-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hover-preview-header .icon { font-size: 14px; }
+  .hover-preview-header .clause-ref {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+  }
+  .hover-preview-header .term-ref {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--xref-term);
+  }
+  .hover-preview-header .title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .hover-preview-body {
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-light) transparent;
+  }
+  .hover-preview-body::-webkit-scrollbar {
+    width: 4px;
+  }
+  .hover-preview-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .hover-preview-body::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 2px;
+  }
+  .hover-preview-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+  /* 스크롤 가능 힌트 — 본문 하단 페이드 */
+  .hover-preview-body.has-scroll {
+    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  }
+  .hover-preview-body.has-scroll:hover,
+  .hover-preview-body.has-scroll:focus-within {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px 14px;
+    font-size: 10px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+  .scroll-hint .arrow {
+    animation: bounce-down 1.2s infinite;
+  }
+  @keyframes bounce-down {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(2px); }
+  }
+  .hover-preview-footer {
+    padding: 6px 14px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* 4. 역참조 목록 (IncomingReferences) */
+  .incoming-refs {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .incoming-refs-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .incoming-refs-title .count {
+    background: var(--bg-hover);
+    border-radius: 9999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .incoming-ref-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .incoming-ref-item:hover { color: var(--accent-blue); }
+  .incoming-ref-item .arrow { color: var(--text-muted); font-size: 10px; }
+  .incoming-ref-item .ref-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent-blue);
+  }
+
+  /* 5. 교차참조 통계 바 */
+  .xref-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .xref-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .xref-stat .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .xref-stat .value { font-weight: 600; color: var(--text-secondary); }
+  .xref-stat-divider {
+    width: 1px; height: 16px;
+    background: var(--border);
+  }
+
+  /* 6. 정의어 사전 패널 (DefinedTermsPanel) */
+  .terms-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .terms-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .terms-panel-header .label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .terms-panel-header .count {
+    background: var(--bg-tertiary);
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .terms-search {
+    margin: 8px 14px;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    width: calc(100% - 28px);
+    outline: none;
+  }
+  .terms-search:focus { border-color: var(--accent-blue); }
+  .terms-search::placeholder { color: var(--text-muted); }
+
+  .terms-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+  .term-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .term-item:last-child { border-bottom: none; }
+  .term-item:hover { background: var(--bg-hover); }
+  .term-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .term-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--xref-term);
+  }
+  .term-clause-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .term-usage {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .term-definition {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .term-aliases {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .term-alias-badge {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* 7. 리스크 배지 */
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .risk-badge.medium { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+  .risk-badge.high { background: var(--accent-red-dim); color: var(--accent-red); }
+
+  /* 8. 범례 */
+  .legend {
+    display: flex;
+    gap: 20px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+
+  /* 9. 조항 분석 결과 (ClauseInlineAnalysis) */
+  .clause-analysis {
+    padding: 12px 20px 12px;
+    padding-left: calc(1.5rem + 4.5rem + 12px + 20px);
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.15);
+  }
+  .analysis-risk {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .analysis-text {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  /* 10. TOC 패널 정의어 섹션 */
+  .toc-terms-section {
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+  }
+  .toc-terms-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .toc-terms-header:hover { color: var(--text-secondary); }
+  .toc-term-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 16px 3px 28px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .toc-term-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+  .toc-term-item .term-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--xref-term);
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+  .toc-term-item .usage-count {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  /* 유틸리티 */
+  .flex { display: flex; }
+  .gap-2 { gap: 8px; }
+  .gap-4 { gap: 16px; }
+  .items-center { align-items: center; }
+  .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; }
+  .relative { position: relative; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* 두 컬럼 레이아웃 */
+  .two-col {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* 정의어 타입 배지 */
+  .def-type-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .def-type-badge.direct { background: var(--accent-green-dim); color: var(--accent-green); }
+  .def-type-badge.reference { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .def-type-badge.enumerated { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+
+  /* 미해결 경고 */
+  .unresolved-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--accent-yellow-dim);
+    border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--accent-yellow);
+  }
+</style>
+</head>
+<body>
+
+<h1>교차참조 UI 디자인 목업</h1>
+<p class="desc">기존 프로젝트 디자인 토큰 기반. 실제 렌더링 결과를 시뮬레이션합니다.</p>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>1. 색상 범례</h2>
+<div class="legend">
+  <div class="legend-item">
+    <span class="xref-clause" style="text-decoration:none;">Sub-Clause 8.7</span>
+    <span style="color:var(--text-muted)">조항 참조 (blue, dotted underline)</span>
+  </div>
+  <div class="legend-item">
+    <span class="xref-term" style="text-decoration:none;">the Contractor</span>
+    <span style="color:var(--text-muted)">정의어 참조 (emerald, dotted underline)</span>
+  </div>
+  <div class="legend-item">
+    <span class="xref-unresolved">Section 12.4</span>
+    <span style="color:var(--text-muted)">미해결 참조 (muted)</span>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>2. 교차참조 통계 바 (ContractDetailView 헤더)</h2>
+<p class="desc">필터 바 아래, 조항 목록 위에 표시됩니다.</p>
+
+<div class="xref-stats-bar">
+  <div class="xref-stat">
+    <div class="dot" style="background:var(--xref-clause)"></div>
+    <span>조항참조</span>
+    <span class="value">87</span>
+  </div>
+  <div class="xref-stat">
+    <div class="dot" style="background:var(--xref-term)"></div>
+    <span>정의어참조</span>
+    <span class="value">127</span>
+  </div>
+  <div class="xref-stat-divider"></div>
+  <div class="xref-stat">
+    <span>해결</span>
+    <span class="value">189</span>
+  </div>
+  <div class="xref-stat">
+    <span style="color:var(--accent-yellow)">미해결</span>
+    <span class="value" style="color:var(--accent-yellow)">25</span>
+  </div>
+  <div class="xref-stat-divider"></div>
+  <div class="xref-stat">
+    <span>정의어</span>
+    <span class="value">219</span>
+  </div>
+</div>
+
+<div style="margin-top:12px;">
+  <div class="unresolved-warning">
+    <span>⚠</span>
+    <span>25개 참조가 대상 조항을 찾지 못했습니다. 외부 문서 또는 별도 첨부를 확인하세요.</span>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>3. 인라인 교차참조 링크 (ClauseTextWithRefs)</h2>
+<p class="desc">조항 본문 내에서 교차참조가 하이라이트됩니다. 호버 시 프리뷰가 나타납니다.</p>
+
+<div class="clause-card">
+  <div class="clause-header">
+    <span class="clause-chevron">▼</span>
+    <span class="clause-number">4.1</span>
+    <span class="clause-title">Contractor's General Obligations
+      <span class="clause-badges">
+        <span class="risk-badge medium">MEDIUM</span>
+      </span>
+    </span>
+  </div>
+
+  <div class="clause-body">The <span class="xref-term">Contractor</span> shall design, execute and complete the <span class="xref-term">Works</span> in accordance with the Contract, and shall remedy any defects in the <span class="xref-term">Works</span>.
+
+The <span class="xref-term">Contractor</span> shall provide the <span class="xref-term">Construction Equipment</span>, <span class="xref-term">Contractor's Documents</span>, <span class="xref-term">Contractor's Personnel</span>, and <span class="xref-term">Temporary Works</span> which are required for the design, execution, completion of the <span class="xref-term">Works</span> and remedying of any defects.
+
+When completed, the <span class="xref-term">Works</span> (and each <span class="xref-term">Section</span>, if any) shall be fit for the purposes for which the <span class="xref-term">Works</span> are intended as defined in the Contract.
+
+The <span class="xref-term">Contractor</span> shall comply with the <span class="xref-term">Applicable Law</span> and the <span class="xref-term">Employer</span>'s safety regulations, as stated in <span class="xref-clause">Sub-Clause 8.7</span> [Delay Damages] and <span class="xref-clause">Sub-Clause 4.8</span> [Safety Procedures].
+
+If any work is required to be done by <span class="xref-term">Other Contractors</span> on the <span class="xref-term">Site</span>, the <span class="xref-term">Contractor</span> shall coordinate with them in accordance with <span class="xref-clause">Sub-Clause 2.3</span> and <span class="xref-unresolved">Appendix B</span>.</div>
+
+  <!-- 분석 결과 -->
+  <div class="clause-analysis">
+    <div class="analysis-risk">
+      <span class="risk-badge medium">MEDIUM</span>
+      <span style="font-size:12px; color:var(--text-muted)">FIDIC 1999 Red Book 4.1과 비교</span>
+    </div>
+    <div class="analysis-text">
+      시공자의 일반 의무 범위가 FIDIC 표준보다 넓게 정의되어 있습니다. 특히 "fit for the purposes"
+      요구사항이 추가되어 있으며, 이는 결과 보증(fitness for purpose) 의무를 부과할 수 있습니다.
+    </div>
+
+    <!-- 역참조 목록 -->
+    <div class="incoming-refs">
+      <div class="incoming-refs-title">
+        이 조항을 참조하는 조항
+        <span class="count">3</span>
+      </div>
+      <div class="incoming-ref-item">
+        <span class="arrow">←</span>
+        <span class="ref-number">8.7</span>
+        <span>Delay Damages</span>
+      </div>
+      <div class="incoming-ref-item">
+        <span class="arrow">←</span>
+        <span class="ref-number">12.3</span>
+        <span>Tests on Completion</span>
+      </div>
+      <div class="incoming-ref-item">
+        <span class="arrow">←</span>
+        <span class="ref-number">20.1</span>
+        <span>Claims</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>4. 호버 프리뷰 — 조항 참조</h2>
+<p class="desc">조항 참조 링크에 마우스를 올리면 나타나는 HoverCard입니다.</p>
+
+<div style="display:flex; gap:24px; align-items:start;">
+  <!-- 트리거 텍스트 -->
+  <div style="padding:20px; background:var(--bg-card); border-radius:var(--radius); flex-shrink:0;">
+    <span style="color:var(--text-secondary)">...as stated in </span><span class="xref-clause" style="position:relative;">Sub-Clause 8.7<span style="position:absolute; left:0; top:28px; pointer-events:none;">↓</span></span>
+  </div>
+
+  <!-- 프리뷰 카드 -->
+  <div class="hover-preview" style="position:relative;">
+    <div class="hover-preview-header">
+      <span class="icon">📄</span>
+      <span class="clause-ref">8.7</span>
+      <span class="title">Delay Damages</span>
+    </div>
+    <div class="hover-preview-body has-scroll">
+      If the Contractor fails to comply with Sub-Clause 8.2 [Time for Completion], the Contractor shall subject to Sub-Clause 2.5 [Employer's Claims] pay delay damages to the Employer for this default. These delay damages shall be the amount stated in the Particular Conditions, and shall be paid for every day which shall elapse between the relevant Time for Completion and the date stated in the Taking-Over Certificate.
+      <br><br>
+      However, the total amount due under this Sub-Clause shall not exceed the maximum amount of delay damages (if any) stated in the Particular Conditions. These delay damages shall be the only damages due from the Contractor for such default, other than in the event of termination under Sub-Clause 15.2 [Termination by Employer] prior to completion of the Works.
+      <br><br>
+      These delay damages shall not relieve the Contractor from the obligation to complete the Works, or from any other duties, obligations or responsibilities which may have under the Contract.
+    </div>
+    <div class="scroll-hint">
+      <span class="arrow">↓</span> 스크롤하여 전체 보기
+    </div>
+    <div class="hover-preview-footer">
+      <span>참조 4건</span>
+      <span style="color:var(--accent-blue)">클릭하여 이동 →</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>5. 호버 프리뷰 — 정의어 참조</h2>
+<p class="desc">정의어 참조 링크에 마우스를 올리면 나타나는 HoverCard입니다.</p>
+
+<div style="display:flex; gap:24px; align-items:start;">
+  <!-- 트리거 텍스트 -->
+  <div style="padding:20px; background:var(--bg-card); border-radius:var(--radius); flex-shrink:0;">
+    <span style="color:var(--text-secondary)">The </span><span class="xref-term" style="position:relative;">Contractor<span style="position:absolute; left:0; top:28px; pointer-events:none;">↓</span></span><span style="color:var(--text-secondary)"> shall design...</span>
+  </div>
+
+  <!-- 프리뷰 카드 -->
+  <div class="hover-preview" style="position:relative;">
+    <div class="hover-preview-header">
+      <span class="icon">📖</span>
+      <span class="term-ref">Contractor</span>
+      <span style="font-size:11px; color:var(--text-muted)">정의: 1.1.1.36</span>
+    </div>
+    <div class="hover-preview-body has-scroll">
+      "Contractor" means the person(s) named as contractor in the Letter of Tender accepted by the Employer and the legal successors in title to this person(s), but not (except as otherwise stated in these Conditions) any assignee of the Contractor.
+      <br><br>
+      The Contractor shall be deemed to include the Contractor's legal successors and permitted assigns, and references in the Contract to the Contractor shall be read and construed accordingly.
+      <br><br>
+      Where two or more persons comprise the Contractor, references to "Contractor" shall apply to each of them severally and they shall be jointly and severally liable for compliance with all of the Contractor's obligations under the Contract.
+    </div>
+    <div class="scroll-hint">
+      <span class="arrow">↓</span> 스크롤하여 전체 보기
+    </div>
+    <div class="hover-preview-footer">
+      <span>본문에서 42회 사용</span>
+      <span style="color:var(--xref-term)">클릭하여 정의 이동 →</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>6. 호버 프리뷰 — 동의어/별칭 정의어</h2>
+<p class="desc">별칭이 있는 정의어의 경우 모든 동의어를 표시합니다.</p>
+
+<div style="display:flex; gap:24px; align-items:start;">
+  <div style="padding:20px; background:var(--bg-card); border-radius:var(--radius); flex-shrink:0;">
+    <span style="color:var(--text-secondary)">...the </span><span class="xref-term">EPC Contract</span><span style="color:var(--text-secondary)"> documents...</span>
+  </div>
+
+  <div class="hover-preview" style="position:relative;">
+    <div class="hover-preview-header">
+      <span class="icon">📖</span>
+      <span class="term-ref">Contract</span>
+      <span style="font-size:11px; color:var(--text-muted)">= EPC Contract</span>
+      <span style="font-size:11px; color:var(--text-muted)">정의: 1.1.1.31</span>
+    </div>
+    <div class="hover-preview-body has-scroll">
+      "Contract" or "EPC Contract" means the Contract Agreement, these Conditions, the Employer's Requirements, the Schedules, the Contractor's Proposal, and such further documents (if any) which are listed in the Contract Agreement or in the Particular Conditions.
+      <br><br>
+      The Contract shall be governed by the Law of the Country (or other jurisdiction) stated in the Particular Conditions, and the language defined under Sub-Clause 1.4 [Law and Language] shall be the ruling language of the Contract.
+      <br><br>
+      In the event of any ambiguity or discrepancy among the documents forming part of the Contract, the priority of documents shall be in accordance with Sub-Clause 1.5 [Priority of Documents].
+      <br><br>
+      <span style="font-size:11px; color:var(--text-muted);">동의어: Contract, EPC Contract</span>
+    </div>
+    <div class="scroll-hint">
+      <span class="arrow">↓</span> 스크롤하여 전체 보기
+    </div>
+    <div class="hover-preview-footer">
+      <span>본문에서 156회 사용</span>
+      <span style="color:var(--xref-term)">클릭하여 정의 이동 →</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>7. 정의어 사전 패널 (DefinedTermsPanel)</h2>
+<p class="desc">ContractDetailView 왼쪽 TOC 패널 하단 또는 독립 탭으로 표시. 사용 횟수 내림차순 정렬.</p>
+
+<div class="two-col">
+  <!-- 정의어 패널 -->
+  <div class="terms-panel">
+    <div class="terms-panel-header">
+      <div class="label">
+        <span>📖</span>
+        정의어 사전
+      </div>
+      <div class="count">219</div>
+    </div>
+
+    <input class="terms-search" type="text" placeholder="정의어 검색...">
+
+    <div class="terms-list">
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Contract</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge direct">직접</span>
+            <span class="term-clause-num">1.1.1.31</span>
+          </div>
+        </div>
+        <div class="term-aliases">
+          <span class="term-alias-badge">= EPC Contract</span>
+        </div>
+        <div class="term-definition">"Contract" or "EPC Contract" means the documents identified in Sub-Clause 1.6 [Contract Agreement].</div>
+        <div class="term-usage">본문 156회 사용</div>
+      </div>
+
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Contractor</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge direct">직접</span>
+            <span class="term-clause-num">1.1.1.36</span>
+          </div>
+        </div>
+        <div class="term-definition">"Contractor" means the person(s) named as contractor in the Letter of Tender accepted by the Employer...</div>
+        <div class="term-usage">본문 42회 사용</div>
+      </div>
+
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Works</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge direct">직접</span>
+            <span class="term-clause-num">1.1.1.219</span>
+          </div>
+        </div>
+        <div class="term-definition">"Works" means the Facility, the Temporary Works, and the Early Works, or either of them as appropriate...</div>
+        <div class="term-usage">본문 38회 사용</div>
+      </div>
+
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Advance Payment</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge reference">참조</span>
+            <span class="term-clause-num">1.1.1.4</span>
+          </div>
+        </div>
+        <div class="term-definition">has the meaning given to it in Sub-Clause 14.2 [Advance Payment].</div>
+        <div class="term-usage">본문 12회 사용</div>
+      </div>
+
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Defect</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge enumerated">열거</span>
+            <span class="term-clause-num">1.1.1.47</span>
+          </div>
+        </div>
+        <div class="term-definition">"Defect" means: (a) any defect, damage, fault, failure, malfunction or omission in the Works; or (b) any other aspect...</div>
+        <div class="term-usage">본문 28회 사용</div>
+      </div>
+
+      <div class="term-item" style="opacity:0.7;">
+        <div class="term-item-header">
+          <span class="term-name" style="font-size:12px;">   ↳ Defective</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge direct" style="font-size:8px;">파생</span>
+            <span class="term-clause-num">1.1.1.47</span>
+          </div>
+        </div>
+        <div class="term-definition" style="padding-left:16px;">"Defective" shall be construed accordingly.</div>
+        <div class="term-usage" style="padding-left:16px;">본문 15회 사용</div>
+      </div>
+
+      <div class="term-item">
+        <div class="term-item-header">
+          <span class="term-name">Owner</span>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span class="def-type-badge direct">직접</span>
+            <span class="term-clause-num">1.1.1.143</span>
+          </div>
+        </div>
+        <div class="term-aliases">
+          <span class="term-alias-badge">= Project Company</span>
+          <span class="term-alias-badge">= QNJSC</span>
+        </div>
+        <div class="term-definition">"Owner", "Project Company" or "QNJSC" means the person named as owner in the Contract Agreement...</div>
+        <div class="term-usage">본문 35회 사용</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 설명 -->
+  <div>
+    <h3>패널 기능</h3>
+    <div style="font-size:13px; color:var(--text-secondary); line-height:1.8;">
+      <p>• 사용 횟수 내림차순 정렬 (가장 빈번한 정의어가 상단)</p>
+      <p>• <span class="def-type-badge direct">직접</span> "Term" means ... — 직접 정의</p>
+      <p>• <span class="def-type-badge reference">참조</span> has the meaning given in Sub-Clause X.Y — 타 조항 참조</p>
+      <p>• <span class="def-type-badge enumerated">열거</span> "Term" means: (a)... (b)... — 열거형 정의</p>
+      <p>• <span class="def-type-badge direct" style="font-size:8px;">파생</span> 인라인 부정의어 (부모 정의어 아래 들여쓰기)</p>
+      <p style="margin-top:8px;">• 동의어는 <span class="term-alias-badge">= alias</span> 배지로 표시</p>
+      <p>• 클릭 시 해당 정의 조항으로 스크롤 이동</p>
+      <p>• 검색 필터 실시간 적용</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>8. TOC 패널 — 정의어 빠른 탐색 섹션</h2>
+<p class="desc">기존 TOC 패널 하단에 정의어 섹션이 추가됩니다.</p>
+
+<div style="width:260px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+  <!-- 기존 TOC 항목 (축약) -->
+  <div style="padding:10px 16px; border-bottom:1px solid var(--border);">
+    <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--text-primary);">
+      <span>📑</span> 목차
+      <span style="background:var(--bg-tertiary); border-radius:9999px; padding:1px 7px; font-size:10px; color:var(--text-muted); margin-left:auto;">342</span>
+    </div>
+  </div>
+
+  <div style="padding:4px 0; border-bottom:1px solid var(--border);">
+    <div style="padding:4px 16px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent-blue);">GENERAL CONDITIONS</div>
+    <div style="padding:3px 16px 3px 28px; font-size:11px; color:var(--text-secondary);">
+      <span style="font-family:monospace; font-size:10px; color:var(--text-muted); margin-right:4px;">1</span>
+      General Provisions
+    </div>
+    <div style="padding:3px 16px 3px 44px; font-size:11px; color:var(--text-muted);">
+      <span style="font-family:monospace; font-size:10px; margin-right:4px;">1.1</span>
+      Definitions
+    </div>
+    <div style="padding:3px 16px 3px 28px; font-size:11px; color:var(--text-secondary);">
+      <span style="font-family:monospace; font-size:10px; color:var(--text-muted); margin-right:4px;">4</span>
+      The Contractor
+      <span style="float:right; width:5px; height:5px; border-radius:50%; background:var(--accent-amber); margin-top:4px;"></span>
+    </div>
+    <div style="padding:3px 16px 3px 28px; font-size:11px; color:var(--text-secondary);">
+      <span style="font-family:monospace; font-size:10px; color:var(--text-muted); margin-right:4px;">8</span>
+      Commencement, Delays
+      <span style="float:right; width:5px; height:5px; border-radius:50%; background:var(--accent-red); margin-top:4px;"></span>
+    </div>
+    <div style="padding:2px 16px; font-size:10px; color:var(--text-muted);">⋮</div>
+  </div>
+
+  <!-- 정의어 빠른 탐색 섹션 -->
+  <div class="toc-terms-section">
+    <div class="toc-terms-header">
+      <span style="font-size:10px;">▼</span>
+      <span>📖</span>
+      정의어
+      <span style="background:var(--bg-tertiary); border-radius:9999px; padding:1px 6px; font-size:9px; margin-left:auto;">219</span>
+    </div>
+    <div class="toc-term-item">
+      <span class="term-dot"></span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Contract</span>
+      <span class="usage-count">156</span>
+    </div>
+    <div class="toc-term-item">
+      <span class="term-dot"></span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Contractor</span>
+      <span class="usage-count">42</span>
+    </div>
+    <div class="toc-term-item">
+      <span class="term-dot"></span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Works</span>
+      <span class="usage-count">38</span>
+    </div>
+    <div class="toc-term-item">
+      <span class="term-dot"></span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Owner</span>
+      <span class="usage-count">35</span>
+    </div>
+    <div class="toc-term-item">
+      <span class="term-dot"></span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Defect</span>
+      <span class="usage-count">28</span>
+    </div>
+    <div style="padding:4px 16px 8px; font-size:10px; color:var(--text-muted); cursor:pointer;">
+      ⋮ 214개 더 보기
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>9. Definitions 조항 카드 (정의어 조항 전용 렌더링)</h2>
+<p class="desc">definitions zone의 조항은 정의어 이름이 강조되고, 정의 유형 배지가 표시됩니다.</p>
+
+<div class="clause-card" style="border-left-color: var(--accent-blue);">
+  <div class="clause-header">
+    <span class="clause-chevron">▼</span>
+    <span class="clause-number">1.1.1.36</span>
+    <span class="clause-title">
+      <span style="color:var(--xref-term); font-weight:700;">"Contractor"</span>
+      <span class="clause-badges">
+        <span class="def-type-badge direct" style="margin-left:4px;">직접 정의</span>
+        <span style="font-size:10px; color:var(--text-muted); background:var(--bg-tertiary); padding:1px 6px; border-radius:4px;">42회 사용</span>
+      </span>
+    </span>
+  </div>
+  <div class="clause-body" style="color: var(--text-secondary);">"<span style="color:var(--xref-term); font-weight:600;">Contractor</span>" means the person(s) named as contractor in the <span class="xref-clause">Letter of Tender</span> accepted by the <span class="xref-term">Employer</span> and the legal successors in title to this person(s).</div>
+</div>
+
+<div style="height:12px;"></div>
+
+<div class="clause-card" style="border-left-color: var(--accent-blue);">
+  <div class="clause-header">
+    <span class="clause-chevron">▼</span>
+    <span class="clause-number">1.1.1.47</span>
+    <span class="clause-title">
+      <span style="color:var(--xref-term); font-weight:700;">"Defect"</span>
+      <span class="clause-badges">
+        <span class="def-type-badge enumerated" style="margin-left:4px;">열거 정의</span>
+        <span class="def-type-badge direct" style="font-size:8px;">+파생: Defective</span>
+        <span style="font-size:10px; color:var(--text-muted); background:var(--bg-tertiary); padding:1px 6px; border-radius:4px;">28회 사용</span>
+      </span>
+    </span>
+  </div>
+  <div class="clause-body" style="color: var(--text-secondary);">"<span style="color:var(--xref-term); font-weight:600;">Defect</span>" means:
+  <div style="padding-left:24px; margin-top:4px;">
+    (a) any defect, damage, fault, failure, malfunction or omission in the <span class="xref-term">Works</span>; or
+    (b) any other aspect of the <span class="xref-term">Works</span> which are not in accordance with the requirements of the <span class="xref-term">Contract</span>,
+  </div>
+  <div style="margin-top:4px;">except to the extent caused by:</div>
+  <div style="padding-left:24px;">
+    (c) fair wear and tear after the <span class="xref-term">Facility Taking Over Date</span>; or
+    (d) operation and maintenance activities by the <span class="xref-term">Owner</span> after the <span class="xref-term">Facility Taking Over Date</span>
+  </div>
+  <div style="margin-top:4px;">and the term "<span style="color:var(--xref-term); font-weight:600;">Defective</span>" shall be construed accordingly.</div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<div class="mockup-section">
+<h2>10. 컴포넌트 구조 요약</h2>
+<div style="font-size:13px; color:var(--text-secondary); line-height:2; font-family:monospace; background:var(--bg-card); padding:20px; border-radius:var(--radius); border:1px solid var(--border);">
+<pre style="color:var(--text-secondary); font-size:12px;">
+ContractDetailView
+├── page-header
+│   └── <span style="color:var(--accent-green);">XrefStatsBar</span>  ← 교차참조 통계 (새로운 컴포넌트)
+│       └── 미해결 경고 배너 (조건부)
+│
+├── ContractTocPanel (좌측)
+│   ├── 기존 TOC 목록
+│   └── <span style="color:var(--accent-green);">TocTermsSection</span>  ← 정의어 빠른 탐색 (새로운 섹션)
+│
+├── 조항 목록 (우측)
+│   └── ClauseSectionGroup
+│       └── ClauseDocumentItem
+│           ├── 헤더 (번호 + 제목 + 배지)
+│           ├── <span style="color:var(--accent-green);">ClauseTextWithRefs</span>  ← 기존 {clause.text} 교체
+│           │   ├── plain text 구간
+│           │   ├── <span style="color:var(--xref-clause);">CrossRefLink (clause_ref)</span>  ← 조항 참조 링크
+│           │   │   └── <span style="color:var(--accent-purple);">CrossRefPreview</span>  ← HoverCard
+│           │   └── <span style="color:var(--xref-term);">CrossRefLink (defined_term)</span>  ← 정의어 참조 링크
+│           │       └── <span style="color:var(--accent-purple);">CrossRefPreview</span>  ← HoverCard
+│           │
+│           ├── ClauseInlineAnalysis (기존)
+│           └── <span style="color:var(--accent-green);">IncomingReferences</span>  ← 역참조 목록 (새로운 컴포넌트)
+│
+└── <span style="color:var(--accent-green);">DefinedTermsPanel</span>  ← 정의어 사전 (별도 탭 또는 사이드 패널)
+</pre>
+</div>
+</div>
+
+</body>
+</html>

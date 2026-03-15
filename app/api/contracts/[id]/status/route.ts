@@ -29,11 +29,11 @@ export async function GET(
   // keeping the polling UX responsive.
   const STATUS_QUERY_TIMEOUT_MS = 5_000;
 
-  type QueryResult = { data: { status: string; user_id: string; updated_at: string; page_count: number | null } | null; error: { message?: string } | null };
+  type QueryResult = { data: { status: string; user_id: string; name: string; updated_at: string; created_at: string; page_count: number | null; parse_progress: number | null } | null; error: { message?: string } | null };
   const queryWithTimeout: Promise<QueryResult | "timeout"> = Promise.race([
     supabase
       .from("contracts")
-      .select("status, user_id, updated_at, page_count")
+      .select("status, user_id, name, updated_at, created_at, page_count, parse_progress")
       .eq("id", id)
       .single() as unknown as Promise<QueryResult>,
     new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), STATUS_QUERY_TIMEOUT_MS)),
@@ -67,12 +67,29 @@ export async function GET(
     );
   }
 
-  // Surface enough context for the client to display progress/errors
+  // Surface enough context for the client to display progress/errors and
+  // restore state when the user navigates back to the upload page.
+  //
+  // Transient statuses intentionally omitted from TERMINAL_STATUSES so that
+  // the polling client continues to poll through each intermediate phase:
+  //   "parsing"          — Docling sidecar is parsing the document
+  //   "quality_checking" — qualityCheck() is running (may invoke Gemma LLM)
+  //   "filtering"        — uncertain zones need user confirmation
+  //   "analyzing"        — clause-level risk analysis is in progress
+  const TERMINAL_STATUSES = ["ready", "partial", "error"] as const;
   return NextResponse.json({
     status: data.status,
+    name: data.name,
     updatedAt: data.updated_at,
+    createdAt: data.created_at,
     pageCount: data.page_count ?? null,
-    // Convenience: tell the client whether to keep polling
-    done: data.status !== "parsing" && data.status !== "uploading",
+    // parseProgress: integer 0–100 during status=parsing, null otherwise.
+    // Clients should use this to render smooth progress within the parsing stage
+    // rather than holding at a fixed percentage for the entire Docling parse duration.
+    parseProgress: data.parse_progress ?? null,
+    // Convenience: tell the client whether to keep polling.
+    // Explicitly enumerate terminal states so that transient states like
+    // "analyzing" do not prematurely stop polling if analysis becomes async.
+    done: (TERMINAL_STATUSES as readonly string[]).includes(data.status),
   });
 }
